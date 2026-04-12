@@ -25,16 +25,12 @@
     </header>
     <main class="list-main">
       <section class="camp-section">
-        <h2 class="section-title">🗓️ 予定</h2>
-        <div id="plannedList" class="camp-list">
-          <div class="loading-msg">読み込み中…</div>
-        </div>
+        <h2 class="section-title">🗓️ 予定・進行中</h2>
+        <div id="plannedList" class="camp-list"><div class="loading-msg">読み込み中…</div></div>
       </section>
       <section class="camp-section">
         <h2 class="section-title">📖 記録</h2>
-        <div id="completedList" class="camp-list">
-          <div class="loading-msg">読み込み中…</div>
-        </div>
+        <div id="completedList" class="camp-list"><div class="loading-msg">読み込み中…</div></div>
       </section>
     </main>
   </div>
@@ -63,6 +59,7 @@
       </div>
     </header>
     <div class="form-scroll">
+
       <section class="form-section">
         <h3 class="form-section-title">⛺ キャンプ情報</h3>
         <div class="field">
@@ -74,7 +71,7 @@
           <input type="text" id="fCampsiteName" class="field-input" placeholder="例：ほったらかしキャンプ場">
         </div>
         <div class="field">
-          <label class="field-label">住所</label>
+          <label class="field-label">住所（天気取得に使用）</label>
           <input type="text" id="fCampsiteAddress" class="field-input" placeholder="例：山梨県山梨市...">
         </div>
         <div class="field-row">
@@ -99,9 +96,14 @@
 
       <section class="form-section">
         <h3 class="form-section-title">👥 メンバー</h3>
+        <p class="form-hint">家族・グループは人数を入力してください</p>
         <div id="favGroupsRow" class="fav-groups-row"></div>
         <div class="inline-input-row">
-          <input type="text" id="memberInput" class="inline-input" placeholder="名前を入力">
+          <input type="text" id="memberInput" class="inline-input" placeholder="名前（例：佐瀬家）">
+          <div class="headcount-wrap">
+            <input type="number" id="memberHeadcount" class="headcount-input" value="1" min="1" max="20">
+            <span class="headcount-unit">人</span>
+          </div>
           <button type="button" class="btn-add-inline" onclick="addMemberFromInput()">追加</button>
         </div>
         <div id="memberList" class="chips-wrap"></div>
@@ -134,6 +136,18 @@
         <div id="shoppingList" class="item-list"></div>
       </section>
 
+      <section class="form-section">
+        <h3 class="form-section-title">🗒️ メモ・再訪</h3>
+        <div class="field">
+          <label class="field-label">キャンプ場メモ</label>
+          <textarea id="fNotes" class="field-textarea" placeholder="例：炊事場が近くて便利。区画が広い。次回はAサイトを予約"></textarea>
+        </div>
+        <label class="revisit-label">
+          <input type="checkbox" id="fRevisit" class="revisit-checkbox">
+          <span class="revisit-text">⭐ またここに行きたい！</span>
+        </label>
+      </section>
+
       <div class="form-bottom-pad"></div>
     </div>
   </div>
@@ -145,7 +159,7 @@
       <h3 class="sheet-title">グループを保存</h3>
       <div class="field">
         <label class="field-label">グループ名</label>
-        <input type="text" id="groupNameInput" class="field-input" placeholder="例：いつメン / 〇〇家と合同">
+        <input type="text" id="groupNameInput" class="field-input" placeholder="例：いつメン / 宇佐美家と合同">
       </div>
       <button class="btn-primary" onclick="saveGroupConfirm()">保存する</button>
     </div>
