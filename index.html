@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="ふぁみキャン△">
+  <meta name="theme-color" content="#1B4332">
+  <title>ふぁみキャン△</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+</head>
+<body>
+
+  <!-- ===== リスト画面 ===== -->
+  <div id="viewList" class="view active">
+    <header class="app-header">
+      <div class="header-inner">
+        <h1 class="app-title">⛺ ふぁみキャン△</h1>
+        <button class="btn-icon-add" onclick="showNewCampForm()">＋</button>
+      </div>
+    </header>
+    <main class="list-main">
+      <section class="camp-section">
+        <h2 class="section-title">🗓️ 予定</h2>
+        <div id="plannedList" class="camp-list">
+          <div class="loading-msg">読み込み中…</div>
+        </div>
+      </section>
+      <section class="camp-section">
+        <h2 class="section-title">📖 記録</h2>
+        <div id="completedList" class="camp-list">
+          <div class="loading-msg">読み込み中…</div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- ===== 詳細画面 ===== -->
+  <div id="viewDetail" class="view">
+    <header class="app-header">
+      <div class="header-inner">
+        <button class="btn-back" onclick="showListView()">← 戻る</button>
+        <div class="header-actions">
+          <button class="btn-text-header" id="btnEdit">編集</button>
+          <button class="btn-text-header danger" id="btnDelete">削除</button>
+        </div>
+      </div>
+    </header>
+    <div id="detailContent" class="detail-content"></div>
+  </div>
+
+  <!-- ===== フォーム画面 ===== -->
+  <div id="viewForm" class="view">
+    <header class="app-header">
+      <div class="header-inner">
+        <button class="btn-back" onclick="cancelForm()">← キャンセル</button>
+        <span class="form-header-title" id="formTitle">新しいキャンプ</span>
+        <button class="btn-save-header" id="btnSave" onclick="saveCamp()">保存</button>
+      </div>
+    </header>
+    <div class="form-scroll">
+      <section class="form-section">
+        <h3 class="form-section-title">⛺ キャンプ情報</h3>
+        <div class="field">
+          <label class="field-label">タイトル <span class="required">*</span></label>
+          <input type="text" id="fTitle" class="field-input" placeholder="例：夏キャン！2025">
+        </div>
+        <div class="field">
+          <label class="field-label">キャンプ場名</label>
+          <input type="text" id="fCampsiteName" class="field-input" placeholder="例：ほったらかしキャンプ場">
+        </div>
+        <div class="field">
+          <label class="field-label">住所</label>
+          <input type="text" id="fCampsiteAddress" class="field-input" placeholder="例：山梨県山梨市...">
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label class="field-label">開始日</label>
+            <input type="date" id="fStartDate" class="field-input">
+          </div>
+          <div class="field">
+            <label class="field-label">終了日</label>
+            <input type="date" id="fEndDate" class="field-input">
+          </div>
+        </div>
+        <div class="field">
+          <label class="field-label">集合場所</label>
+          <input type="text" id="fMeetingPlace" class="field-input" placeholder="例：道の駅 〇〇">
+        </div>
+        <div class="field">
+          <label class="field-label">集合時間</label>
+          <input type="time" id="fMeetingTime" class="field-input">
+        </div>
+      </section>
+
+      <section class="form-section">
+        <h3 class="form-section-title">👥 メンバー</h3>
+        <div id="favGroupsRow" class="fav-groups-row"></div>
+        <div class="inline-input-row">
+          <input type="text" id="memberInput" class="inline-input" placeholder="名前を入力">
+          <button type="button" class="btn-add-inline" onclick="addMemberFromInput()">追加</button>
+        </div>
+        <div id="memberList" class="chips-wrap"></div>
+        <button type="button" class="btn-save-group" onclick="showSaveGroupModal()">⭐ グループとして保存</button>
+      </section>
+
+      <section class="form-section">
+        <h3 class="form-section-title">📝 やりたいこと</h3>
+        <div class="inline-input-row">
+          <select id="todoCategory" class="category-select">
+            <option value="food">🍳 料理</option>
+            <option value="activity">🎯 遊び</option>
+            <option value="other">✨ その他</option>
+          </select>
+          <input type="text" id="todoInput" class="inline-input" placeholder="やりたいことを入力">
+          <button type="button" class="btn-add-inline" onclick="addTodoFromInput()">追加</button>
+        </div>
+        <div id="todoList" class="item-list"></div>
+      </section>
+
+      <section class="form-section">
+        <h3 class="form-section-title">🛒 買い出しリスト</h3>
+        <div class="inline-input-row shop-row">
+          <input type="text" id="shopItemInput" class="inline-input" placeholder="品目">
+          <select id="shopAssigneeInput" class="assignee-select">
+            <option value="">担当</option>
+          </select>
+          <button type="button" class="btn-add-inline" onclick="addShoppingFromInput()">追加</button>
+        </div>
+        <div id="shoppingList" class="item-list"></div>
+      </section>
+
+      <div class="form-bottom-pad"></div>
+    </div>
+  </div>
+
+  <!-- ===== モーダル: グループ保存 ===== -->
+  <div id="saveGroupModal" class="modal-overlay" onclick="hideSaveGroupModal()">
+    <div class="bottom-sheet" onclick="event.stopPropagation()">
+      <div class="sheet-handle"></div>
+      <h3 class="sheet-title">グループを保存</h3>
+      <div class="field">
+        <label class="field-label">グループ名</label>
+        <input type="text" id="groupNameInput" class="field-input" placeholder="例：いつメン / 〇〇家と合同">
+      </div>
+      <button class="btn-primary" onclick="saveGroupConfirm()">保存する</button>
+    </div>
+  </div>
+
+  <!-- ===== モーダル: 写真アップロード ===== -->
+  <div id="photoModal" class="modal-overlay" onclick="hidePhotoModal()">
+    <div class="bottom-sheet" onclick="event.stopPropagation()">
+      <div class="sheet-handle"></div>
+      <h3 class="sheet-title" id="photoModalTitle">写真を追加</h3>
+      <div id="photoUploadArea" class="photo-upload-area" onclick="document.getElementById('photoFileInput').click()">
+        <div class="upload-icon">📷</div>
+        <p class="upload-hint">タップして写真を選択</p>
+        <input type="file" id="photoFileInput" accept="image/*" style="display:none" onchange="handlePhotoFile(event)">
+      </div>
+      <div id="photoPreviewWrap" style="display:none">
+        <img id="photoPreview" class="photo-preview-img" alt="プレビュー">
+        <button class="btn-change-photo" onclick="document.getElementById('photoFileInput').click()">写真を変える</button>
+      </div>
+      <div class="field" style="margin-top:14px">
+        <label class="field-label">コメント（任意）</label>
+        <input type="text" id="photoCommentInput" class="field-input" placeholder="一言コメント">
+      </div>
+      <button class="btn-primary" id="photoSubmitBtn" onclick="submitPhoto()">写真を保存</button>
+    </div>
+  </div>
+
+  <!-- ===== モーダル: キャンプ完了・評価 ===== -->
+  <div id="completeModal" class="modal-overlay" onclick="hideCompleteModal()">
+    <div class="bottom-sheet" onclick="event.stopPropagation()">
+      <div class="sheet-handle"></div>
+      <h3 class="sheet-title">キャンプお疲れさまでした！</h3>
+      <p class="sheet-desc" id="completeCampName"></p>
+      <p class="sheet-sub">またここに行きたい度は？</p>
+      <div class="star-row" id="starRow">
+        <span class="star" onclick="setRating(1)">★</span>
+        <span class="star" onclick="setRating(2)">★</span>
+        <span class="star" onclick="setRating(3)">★</span>
+        <span class="star" onclick="setRating(4)">★</span>
+        <span class="star" onclick="setRating(5)">★</span>
+      </div>
+      <p class="rating-label" id="ratingLabel">タップして評価</p>
+      <button class="btn-primary btn-complete-confirm" onclick="confirmComplete()">記録として保存する</button>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
