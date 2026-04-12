@@ -344,24 +344,25 @@ async function loadWeather(query, startDate, endDate) {
     if (end < to) to = end;
     if (to < from) { el.innerHTML = '<p class="weather-error">キャンプ期間が過ぎています</p>'; return; }
 
-    var wxRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=Asia%2FTokyo&start_date=${isoDate(from)}&end_date=${isoDate(to)}`);
+    var wxRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max&timezone=Asia%2FTokyo&start_date=${isoDate(from)}&end_date=${isoDate(to)}`);
     var wx    = await wxRes.json();
     if (!wx.daily) { el.innerHTML = '<p class="weather-error">天気データを取得できませんでした</p>'; return; }
 
     var dayNames = ['日','月','火','水','木','金','土'];
     var html = '<div class="weather-scroll">';
     wx.daily.time.forEach((ds, i) => {
-      var d  = new Date(ds + 'T00:00:00');
-      var lbl = d.getTime() === today.getTime() ? '今日' : `${d.getMonth()+1}/${d.getDate()}(${dayNames[d.getDay()]})`;
+      var d    = new Date(ds + 'T00:00:00');
+      var lbl  = d.getTime() === today.getTime() ? '今日' : `${d.getMonth()+1}/${d.getDate()}(${dayNames[d.getDay()]})`;
       var code = wx.daily.weathercode[i];
       var tmax = Math.round(wx.daily.temperature_2m_max[i]);
       var tmin = Math.round(wx.daily.temperature_2m_min[i]);
-      var rain = Math.round(wx.daily.precipitation_sum[i] * 10) / 10;
+      var prob = wx.daily.precipitation_probability_max?.[i];
+      var probHtml = prob != null ? `<div class="weather-prob">${prob}%</div>` : '';
       html += `<div class="weather-day${d.getTime()===today.getTime()?' today':''}">
         <div class="weather-day-label">${lbl}</div>
         <div class="weather-icon">${WX[code]||'🌡️'}</div>
         <div class="weather-temp">${tmax}°<span>/${tmin}°</span></div>
-        <div class="weather-rain">${rain > 0 ? `💧${rain}` : '-'}</div>
+        ${probHtml}
       </div>`;
     });
     html += '</div>';
