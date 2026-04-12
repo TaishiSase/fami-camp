@@ -305,12 +305,32 @@ async function startCamping(campId) {
 }
 
 // ===== 天気 =====
+function extractGeoQuery(raw) {
+  // 郵便番号を除去（〒XXX-XXXX または XXX-XXXX）
+  var q = raw.replace(/〒?\d{3}-\d{4}\s*/g, '').trim();
+  // 都道府県 + 市区町村レベルまで切り出す（例：愛知県設楽町）
+  var m = q.match(/^(.+?[市区町村])/);
+  if (m) return m[1];
+  // 郵便番号だけ除去した形で返す
+  return q;
+}
+
 async function loadWeather(query, startDate, endDate) {
   var el = document.getElementById('weatherContent');
   if (!el) return;
   try {
-    var geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=1&language=ja&format=json`);
+    var geoQuery = extractGeoQuery(query);
+    var geoRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(geoQuery)}&count=1&language=ja&format=json`);
     var geo    = await geoRes.json();
+    if (!geo.results || !geo.results.length) {
+      // 郡を除いた形で再試行（例：北設楽郡設楽町 → 設楽町）
+      var retry = geoQuery.replace(/.+郡/, '');
+      if (retry !== geoQuery) {
+        var geoRes2 = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(retry)}&count=1&language=ja&format=json`);
+        var geo2 = await geoRes2.json();
+        if (geo2.results && geo2.results.length) { geo = geo2; }
+      }
+    }
     if (!geo.results || !geo.results.length) {
       el.innerHTML = '<p class="weather-error">場所を特定できませんでした</p>'; return;
     }
