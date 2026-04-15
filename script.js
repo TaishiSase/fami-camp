@@ -17,6 +17,18 @@ var pendingPhotoType  = null;
 var pendingPhotoSlot  = null;
 var pendingPhotoId    = null;
 var pendingPhotoFile  = null;
+var gearItems = [];
+
+// ===== 器具カテゴリ =====
+var GEAR_CATS = [
+  { key: 'tent',      icon: '⛺', label: 'テント・タープ' },
+  { key: 'cooking',   icon: '🍳', label: '調理器具' },
+  { key: 'sleeping',  icon: '😴', label: '寝具' },
+  { key: 'lighting',  icon: '🔦', label: 'ランタン・照明' },
+  { key: 'furniture', icon: '🪑', label: 'テーブル・チェア' },
+  { key: 'outdoor',   icon: '🌲', label: 'アウトドア用品' },
+  { key: 'other',     icon: '📦', label: 'その他' }
+];
 
 // ===== 天気コード =====
 var WX = {
@@ -33,7 +45,7 @@ async function init() {
     var res = await fetch('config.json');
     var cfg = await res.json();
     db = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey);
-    await Promise.all([loadCamps(), loadFavoriteGroups()]);
+    await Promise.all([loadCamps(), loadFavoriteGroups(), loadGearItems()]);
   } catch (e) {
     console.error('init error', e);
     document.getElementById('plannedList').innerHTML   = '<p class="empty-msg">接続エラー</p>';
@@ -105,25 +117,26 @@ async function showCampDetail(campId) {
   showView('detail');
   document.getElementById('detailContent').innerHTML = '<div style="padding:24px;color:#78716C">読み込み中…</div>';
 
-  var [cr, mr, tr, sr, pr, er] = await Promise.all([
+  var [cr, mr, tr, sr, pr, er, gr] = await Promise.all([
     db.from('camps').select('*').eq('id', campId).single(),
     db.from('camp_members').select('*').eq('camp_id', campId),
     db.from('camp_todos').select('*').eq('camp_id', campId).order('created_at'),
     db.from('camp_shopping').select('*').eq('camp_id', campId).order('created_at'),
     db.from('camp_photos').select('*').eq('camp_id', campId).order('sort_order'),
-    db.from('camp_expenses').select('*').eq('camp_id', campId).order('created_at')
+    db.from('camp_expenses').select('*').eq('camp_id', campId).order('created_at'),
+    db.from('camp_gear').select('gear_item_id').eq('camp_id', campId)
   ]);
 
   if (cr.error) { document.getElementById('detailContent').innerHTML = '<p style="padding:24px">読み込みエラー</p>'; return; }
 
   currentCampMembers = mr.data || [];
-  renderDetail(cr.data, mr.data || [], tr.data || [], sr.data || [], pr.data || [], er.data || []);
+  renderDetail(cr.data, mr.data || [], tr.data || [], sr.data || [], pr.data || [], er.data || [], (gr.data || []).map(g => g.gear_item_id));
 
   document.getElementById('btnEdit').onclick   = () => showEditCampForm(campId);
   document.getElementById('btnDelete').onclick = () => deleteCamp(campId);
 }
 
-function renderDetail(camp, members, todos, shopping, photos, expenses) {
+function renderDetail(camp, members, todos, shopping, photos, expenses, selectedGearIds) {
   var el = document.getElementById('detailContent');
 
   // ステップバー
@@ -267,6 +280,11 @@ function renderDetail(camp, members, todos, shopping, photos, expenses) {
         <div class="photo-slots">${photoSlots('campsite', cPhotos, 3)}</div>
         <div class="photo-type-label">幸せの記録</div>
         <div class="photo-slots">${photoSlots('happy', hPhotos, 3)}</div>
+      </div>
+
+      <div class="detail-section">
+        <div class="detail-section-title">🎒 持ち物リスト</div>
+        <div id="campGearList">${buildGearSectionHtml(selectedGearIds || [])}</div>
       </div>
 
       ${(camp.notes || camp.want_to_revisit) ? `
@@ -806,11 +824,12 @@ async function deleteCamp(campId) {
 
 // ===== LINEシェア（リッチ版） =====
 async function shareToLine(campId) {
-  var [cr, mr, tr, sr] = await Promise.all([
+  var [cr, mr, tr, sr, gr] = await Promise.all([
     db.from('camps').select('*').eq('id', campId).single(),
     db.from('camp_members').select('*').eq('camp_id', campId),
     db.from('camp_todos').select('*').eq('camp_id', campId),
-    db.from('camp_shopping').select('*').eq('camp_id', campId)
+    db.from('camp_shopping').select('*').eq('camp_id', campId),
+    db.from('camp_gear').select('gear_item_id').eq('camp_id', campId)
   ]);
   var c = cr.data;
   var members  = mr.data || [];
@@ -856,9 +875,133 @@ async function shareToLine(campId) {
     Object.entries(byA).forEach(([a, items]) => L.push(`   ${a}：${items.join('・')}`));
     L.push('');
   }
+  var selectedGearIds = new Set((gr.data || []).map(g => g.gear_item_id));
+  var selectedGear = gearItems.filter(g => selectedGearIds.has(g.id));
+  if (selectedGear.length) {
+    L.push('🎒 持ち物');
+    GEAR_CATS.forEach(cat => {
+      var items = selectedGear.filter(g => g.category === cat.key);
+      if (items.length) L.push(`   ${cat.icon} ${items.map(g => g.name).join('・')}`);
+    });
+    L.push('');
+  }
   L.push('▼ ふぁみキャン△で詳細を確認！');
   L.push('https://fami-camp.vercel.app/');
 
+  window.open('https://line.me/R/msg/text/?' + encodeURIComponent(L.join('\n')), '_blank');
+}
+
+// ===== 器具管理 =====
+async function loadGearItems() {
+  if (!db) return;
+  var { data } = await db.from('gear_items').select('*').order('created_at');
+  gearItems = data || [];
+}
+
+function showGearView() {
+  renderGearView();
+  showView('gear');
+}
+
+function renderGearView() {
+  var el = document.getElementById('gearListContent');
+  if (!gearItems.length) {
+    el.innerHTML = '<p class="empty-msg">まだありません<br><span style="font-size:13px;color:var(--muted)">右上の ＋ から追加してください</span></p>';
+    return;
+  }
+  var byCat = {};
+  gearItems.forEach(g => { (byCat[g.category] = byCat[g.category] || []).push(g); });
+  var html = '';
+  GEAR_CATS.forEach(cat => {
+    var items = byCat[cat.key] || [];
+    if (!items.length) return;
+    html += `<div class="gear-category-section">
+      <div class="gear-cat-header">${cat.icon} ${cat.label}</div>`;
+    items.forEach(g => {
+      html += `<div class="gear-item-row">
+        <span class="gear-item-name">${esc(g.name)}</span>
+        <button class="btn-gear-del" onclick="deleteGearItem('${g.id}')">×</button>
+      </div>`;
+    });
+    html += '</div>';
+  });
+  el.innerHTML = html;
+}
+
+function showAddGearModal() {
+  document.getElementById('gearNameInput').value = '';
+  document.getElementById('gearCategoryInput').selectedIndex = 0;
+  document.getElementById('addGearModal').classList.add('active');
+}
+function hideAddGearModal() { document.getElementById('addGearModal').classList.remove('active'); }
+
+async function saveGearItem() {
+  var name     = document.getElementById('gearNameInput').value.trim();
+  var category = document.getElementById('gearCategoryInput').value;
+  if (!name) { alert('器具名を入力してください'); return; }
+  var { error } = await db.from('gear_items').insert({ name, category });
+  if (error) { alert('追加に失敗しました'); return; }
+  await loadGearItems();
+  renderGearView();
+  hideAddGearModal();
+}
+
+async function deleteGearItem(id) {
+  if (!confirm('この器具を削除しますか？')) return;
+  var { error } = await db.from('gear_items').delete().eq('id', id);
+  if (error) { alert('削除に失敗しました'); return; }
+  await loadGearItems();
+  renderGearView();
+}
+
+async function toggleCampGear(gearItemId, checked) {
+  if (checked) {
+    await db.from('camp_gear').insert({ camp_id: currentCampId, gear_item_id: gearItemId });
+  } else {
+    await db.from('camp_gear').delete().eq('camp_id', currentCampId).eq('gear_item_id', gearItemId);
+  }
+}
+
+function buildGearSectionHtml(selectedIds) {
+  if (!gearItems.length) {
+    return `<p class="gear-empty-hint"><span onclick="showGearView()" style="color:var(--green-light);cursor:pointer;text-decoration:underline">器具マスターへ →</span> から器具を登録すると表示されます</p>`;
+  }
+  var selectedSet = new Set(selectedIds);
+  var byCat = {};
+  gearItems.forEach(g => { (byCat[g.category] = byCat[g.category] || []).push(g); });
+  var html = '';
+  GEAR_CATS.forEach(cat => {
+    var items = byCat[cat.key] || [];
+    if (!items.length) return;
+    html += `<div class="gear-check-category"><div class="gear-check-cat-label">${cat.icon} ${cat.label}</div>`;
+    items.forEach(g => {
+      var chk = selectedSet.has(g.id) ? 'checked' : '';
+      html += `<label class="gear-check-label">
+        <input type="checkbox" class="gear-checkbox" ${chk} onchange="toggleCampGear('${g.id}', this.checked)">
+        <span class="gear-check-text">${esc(g.name)}</span>
+      </label>`;
+    });
+    html += '</div>';
+  });
+  return html || '<p class="gear-empty-hint">器具が登録されていません</p>';
+}
+
+async function shareGearListToLine() {
+  if (!gearItems.length) { alert('器具が登録されていません'); return; }
+  var L = [];
+  L.push('┄'.repeat(14));
+  L.push('🎒 うちの器具リスト');
+  L.push('┄'.repeat(14));
+  L.push('');
+  GEAR_CATS.forEach(cat => {
+    var items = gearItems.filter(g => g.category === cat.key);
+    if (!items.length) return;
+    L.push(`${cat.icon} ${cat.label}`);
+    items.forEach(g => L.push(`   ・${g.name}`));
+    L.push('');
+  });
+  L.push('▼ ふぁみキャン△');
+  L.push('https://fami-camp.vercel.app/');
   window.open('https://line.me/R/msg/text/?' + encodeURIComponent(L.join('\n')), '_blank');
 }
 
@@ -881,6 +1024,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('memberInput').addEventListener('keydown',    e => { if (e.key==='Enter'){e.preventDefault();addMemberFromInput();} });
   document.getElementById('todoInput').addEventListener('keydown',      e => { if (e.key==='Enter'){e.preventDefault();addTodoFromInput();} });
   document.getElementById('shopItemInput').addEventListener('keydown',  e => { if (e.key==='Enter'){e.preventDefault();addShoppingFromInput();} });
+  document.getElementById('gearNameInput').addEventListener('keydown',  e => { if (e.key==='Enter'){e.preventDefault();saveGearItem();} });
 });
 
 init();

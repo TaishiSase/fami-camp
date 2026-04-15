@@ -20,7 +20,10 @@
     <header class="app-header">
       <div class="header-inner">
         <h1 class="app-title">⛺ ふぁみキャン△</h1>
-        <button class="btn-icon-add" onclick="showNewCampForm()">＋</button>
+        <div class="header-right-group">
+          <button class="btn-gear-header" onclick="showGearView()">🎒</button>
+          <button class="btn-icon-add" onclick="showNewCampForm()">＋</button>
+        </div>
       </div>
     </header>
     <main class="list-main">
@@ -152,6 +155,21 @@
     </div>
   </div>
 
+  <!-- ===== 器具管理画面 ===== -->
+  <div id="viewGear" class="view">
+    <header class="app-header">
+      <div class="header-inner">
+        <button class="btn-back" onclick="showView('list')">← 戻る</button>
+        <span class="form-header-title">🎒 器具管理</span>
+        <button class="btn-icon-add" onclick="showAddGearModal()">＋</button>
+      </div>
+    </header>
+    <div class="gear-view-body">
+      <button class="btn-line gear-share-btn" onclick="shareGearListToLine()">📤 器具リストをLINEで送る</button>
+      <div id="gearListContent"><div class="loading-msg">読み込み中…</div></div>
+    </div>
+  </div>
+
   <!-- ===== モーダル: グループ保存 ===== -->
   <div id="saveGroupModal" class="modal-overlay" onclick="hideSaveGroupModal()">
     <div class="bottom-sheet" onclick="event.stopPropagation()">
@@ -203,6 +221,31 @@
       </div>
       <p class="rating-label" id="ratingLabel">タップして評価</p>
       <button class="btn-primary btn-complete-confirm" onclick="confirmComplete()">記録として保存する</button>
+    </div>
+  </div>
+
+  <!-- ===== モーダル: 器具追加 ===== -->
+  <div id="addGearModal" class="modal-overlay" onclick="hideAddGearModal()">
+    <div class="bottom-sheet" onclick="event.stopPropagation()">
+      <div class="sheet-handle"></div>
+      <h3 class="sheet-title">器具を追加</h3>
+      <div class="field" style="margin-top:12px">
+        <label class="field-label">カテゴリ</label>
+        <select id="gearCategoryInput" class="field-input">
+          <option value="tent">⛺ テント・タープ</option>
+          <option value="cooking">🍳 調理器具</option>
+          <option value="sleeping">😴 寝具</option>
+          <option value="lighting">🔦 ランタン・照明</option>
+          <option value="furniture">🪑 テーブル・チェア</option>
+          <option value="outdoor">🌲 アウトドア用品</option>
+          <option value="other">📦 その他</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="field-label">器具名</label>
+        <input type="text" id="gearNameInput" class="field-input" placeholder="例：ツールームテント">
+      </div>
+      <button class="btn-primary" onclick="saveGearItem()">追加する</button>
     </div>
   </div>
 
