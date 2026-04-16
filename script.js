@@ -226,8 +226,8 @@ function renderDetail(camp, members, todos, shopping, photos, expenses, selected
       ${camp.campsite_name ? `
       <div class="detail-section">
         <div class="detail-section-title">⛺ キャンプ場</div>
-        <p>${esc(camp.campsite_name)}</p>
-        ${camp.campsite_address ? `<p class="muted">${esc(camp.campsite_address)}</p>` : ''}
+        <a class="map-link" href="https://maps.google.com/maps?q=${encodeURIComponent(camp.campsite_address || camp.campsite_name)}" target="_blank" rel="noopener">${esc(camp.campsite_name)} <span class="map-link-icon">📍</span></a>
+        ${camp.campsite_address ? `<p class="muted map-address">${esc(camp.campsite_address)}</p>` : ''}
       </div>` : ''}
 
       ${(camp.start_date || camp.end_date) ? `

@@ -439,3 +439,13 @@ body {
 .gear-checkbox { width: 18px; height: 18px; accent-color: var(--green-mid); cursor: pointer; flex-shrink: 0; }
 .gear-check-text { font-size: 14px; color: var(--text); }
 .gear-empty-hint { font-size: 13px; color: var(--muted); line-height: 1.7; }
+
+/* ===== マップリンク ===== */
+.map-link {
+  display: inline-flex; align-items: center; gap: 2px;
+  font-size: 15px; font-weight: 600; color: var(--green-mid);
+  text-decoration: none;
+}
+.map-link:active { opacity: 0.7; }
+.map-link-icon { font-size: 14px; }
+.map-address { margin-top: 3px; }
