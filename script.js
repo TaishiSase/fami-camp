@@ -380,6 +380,12 @@ async function loadWeather(query, startDate, endDate) {
     if (end < to) to = end;
     if (to < from) { el.innerHTML = '<p class="weather-error">キャンプ期間が過ぎています</p>'; return; }
 
+    var daysUntil = Math.round((from - today) / (1000 * 60 * 60 * 24));
+    if (daysUntil > 15) {
+      el.innerHTML = `<p class="weather-error">🗓️ キャンプまであと${daysUntil}日。16日前になると予報が表示されます。</p>`;
+      return;
+    }
+
     var wxRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max&timezone=Asia%2FTokyo&start_date=${isoDate(from)}&end_date=${isoDate(to)}`);
     var wx    = await wxRes.json();
     if (!wx.daily) { el.innerHTML = '<p class="weather-error">天気データを取得できませんでした</p>'; return; }
