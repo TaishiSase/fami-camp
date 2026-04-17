@@ -831,8 +831,22 @@ async function deleteCamp(campId) {
   currentCampId = null; await loadCamps(); showView('list');
 }
 
+// ===== シェア共通 =====
+async function openShare(text) {
+  if (navigator.share) {
+    try {
+      await navigator.share({ text });
+      return;
+    } catch(e) {
+      if (e.name === 'AbortError') return; // ユーザーがキャンセル
+    }
+  }
+  window.open('https://line.me/R/msg/text/?' + encodeURIComponent(text), '_blank');
+}
+
 // ===== LINEシェア（リッチ版） =====
 async function shareToLine(campId) {
+  try {
   var [cr, mr, tr, sr, gr] = await Promise.all([
     db.from('camps').select('*').eq('id', campId).single(),
     db.from('camp_members').select('*').eq('camp_id', campId),
@@ -897,7 +911,11 @@ async function shareToLine(campId) {
   L.push('▼ ふぁみキャン△で詳細を確認！');
   L.push('https://fami-camp.vercel.app/');
 
-  window.open('https://line.me/R/msg/text/?' + encodeURIComponent(L.join('\n')), '_blank');
+  await openShare(L.join('\n'));
+  } catch(e) {
+    console.error('shareToLine error', e);
+    alert('シェアに失敗しました');
+  }
 }
 
 // ===== 器具管理 =====
@@ -1011,7 +1029,7 @@ async function shareGearListToLine() {
   });
   L.push('▼ ふぁみキャン△');
   L.push('https://fami-camp.vercel.app/');
-  window.open('https://line.me/R/msg/text/?' + encodeURIComponent(L.join('\n')), '_blank');
+  await openShare(L.join('\n'));
 }
 
 // ===== ユーティリティ =====
