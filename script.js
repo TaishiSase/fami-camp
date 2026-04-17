@@ -359,6 +359,15 @@ async function loadWeather(query, startDate, endDate) {
       }
     }
     if (!geo.results || !geo.results.length) {
+      // 市区町村の語尾を除いた名前で再試行（例：伊賀市 → 伊賀）
+      var cityBase = geoQuery.replace(/^.+?[都道府県]/, '').replace(/[市区町村]$/, '');
+      if (cityBase && cityBase !== geoQuery) {
+        var geoRes4 = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityBase)}&count=1&language=ja&format=json`);
+        var geo4 = await geoRes4.json();
+        if (geo4.results && geo4.results.length) { geo = geo4; }
+      }
+    }
+    if (!geo.results || !geo.results.length) {
       el.innerHTML = '<p class="weather-error">場所を特定できませんでした</p>'; return;
     }
     var { latitude: lat, longitude: lon } = geo.results[0];
