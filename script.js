@@ -808,9 +808,7 @@ async function submitPhoto() {
     hidePhotoModal();
     await showCampDetail(currentCampId);
   } catch (e) {
-    console.error('upload error:', e);
-    var msg = (e && (e.message || e.error || JSON.stringify(e))) || '不明なエラー';
-    alert('アップロードに失敗しました\n\nエラー: ' + msg);
+    console.error(e); alert('アップロードに失敗しました');
   } finally {
     btn.disabled = false; btn.textContent = '写真を保存';
   }
