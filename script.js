@@ -46,6 +46,8 @@ async function init() {
     var cfg = await res.json();
     db = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey);
     await Promise.all([loadCamps(), loadFavoriteGroups(), loadGearItems()]);
+    var campParam = new URLSearchParams(location.search).get('camp');
+    if (campParam) await showCampDetail(campParam);
   } catch (e) {
     console.error('init error', e);
     document.getElementById('plannedList').innerHTML   = '<p class="empty-msg">接続エラー</p>';
@@ -976,7 +978,7 @@ async function shareToLine(campId) {
   }
 
   L.push('▼ ふぁみキャン△で詳細を確認！');
-  L.push('https://fami-camp.vercel.app/');
+  L.push('https://fami-camp.vercel.app/?camp=' + campId);
 
   await openShare(L.join('\n'));
   } catch(e) {
