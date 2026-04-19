@@ -862,67 +862,119 @@ async function openShare(text) {
 // ===== LINEシェア（リッチ版） =====
 async function shareToLine(campId) {
   try {
-  var [cr, mr, tr, sr, gr] = await Promise.all([
+  var [cr, mr, tr, sr, gr, pr] = await Promise.all([
     db.from('camps').select('*').eq('id', campId).single(),
     db.from('camp_members').select('*').eq('camp_id', campId),
     db.from('camp_todos').select('*').eq('camp_id', campId),
     db.from('camp_shopping').select('*').eq('camp_id', campId),
-    db.from('camp_gear').select('gear_item_id').eq('camp_id', campId)
+    db.from('camp_gear').select('gear_item_id').eq('camp_id', campId),
+    db.from('camp_photos').select('*').eq('camp_id', campId).order('sort_order')
   ]);
-  var c = cr.data;
+  var c        = cr.data;
   var members  = mr.data || [];
   var todos    = tr.data || [];
   var shopping = sr.data || [];
+  var photos   = pr.data || [];
 
   var L = [];
-  L.push('┄'.repeat(14));
-  L.push(`⛺ ${c.title}`);
-  L.push('┄'.repeat(14));
-  L.push('');
-  if (c.campsite_name) {
-    L.push(`📍 ${c.campsite_name}`);
-    if (c.campsite_address) L.push(`   ${c.campsite_address}`);
-  }
-  var dr = fmtRange(c.start_date, c.end_date);
-  if (dr) L.push(`📅 ${dr}`);
-  L.push('');
-  if (c.meeting_place || c.meeting_time) {
-    L.push('🚗 集合');
-    if (c.meeting_place) L.push(`   ${c.meeting_place}`);
-    if (c.meeting_time)  L.push(`   ⏰ ${c.meeting_time.slice(0,5)}`);
+
+  if (c.status === 'completed') {
+    // ===== 記録シェア =====
+    L.push('┄'.repeat(14));
+    L.push(`🏕️ ${c.title}`);
+    if (c.rating) L.push('★'.repeat(c.rating) + '☆'.repeat(5 - c.rating));
+    L.push('┄'.repeat(14));
     L.push('');
-  }
-  if (members.length) {
-    L.push(`👥 ${members.map(m => m.headcount > 1 ? `${m.name}(${m.headcount}人)` : m.name).join('・')}`);
+    if (c.campsite_name) {
+      L.push(`📍 ${c.campsite_name}`);
+      if (c.campsite_address) L.push(`   ${c.campsite_address}`);
+    }
+    var dr = fmtRange(c.start_date, c.end_date);
+    if (dr) L.push(`📅 ${dr}`);
     L.push('');
-  }
-  var food = todos.filter(t => t.category === 'food');
-  var act  = todos.filter(t => t.category === 'activity');
-  var oth  = todos.filter(t => t.category === 'other');
-  if (todos.length) {
-    L.push('📝 やること');
-    if (food.length) L.push(`   🍳 ${food.map(t=>t.text).join('・')}`);
-    if (act.length)  L.push(`   🎯 ${act.map(t=>t.text).join('・')}`);
-    if (oth.length)  L.push(`   ✨ ${oth.map(t=>t.text).join('・')}`);
+    if (members.length) {
+      L.push(`👥 ${members.map(m => m.headcount > 1 ? `${m.name}(${m.headcount}人)` : m.name).join('・')}`);
+      L.push('');
+    }
+    var doneTodos = todos.filter(t => t.is_done);
+    if (doneTodos.length) {
+      var food = doneTodos.filter(t => t.category === 'food');
+      var act  = doneTodos.filter(t => t.category === 'activity');
+      var oth  = doneTodos.filter(t => t.category === 'other');
+      L.push('📝 やったこと');
+      if (food.length) L.push(`   🍳 ${food.map(t => t.text).join('・')}`);
+      if (act.length)  L.push(`   🎯 ${act.map(t => t.text).join('・')}`);
+      if (oth.length)  L.push(`   ✨ ${oth.map(t => t.text).join('・')}`);
+      L.push('');
+    }
+    var photoComments = photos.filter(p => p.comment);
+    if (photoComments.length) {
+      L.push('📸 写真メモ');
+      photoComments.forEach(p => L.push(`   ・${p.comment}`));
+      L.push('');
+    }
+    if (c.notes) {
+      L.push('🗒️ メモ');
+      c.notes.split('\n').forEach(line => { if (line.trim()) L.push('   ' + line.trim()); });
+      L.push('');
+    }
+    if (c.want_to_revisit) {
+      L.push('⭐ またここに行きたい！');
+      L.push('');
+    }
+
+  } else {
+    // ===== 予定シェア =====
+    L.push('┄'.repeat(14));
+    L.push(`⛺ ${c.title}`);
+    L.push('┄'.repeat(14));
     L.push('');
-  }
-  if (shopping.length) {
-    L.push('🛒 買い出し');
-    var byA = {};
-    shopping.forEach(s => { var a = s.assignee || 'その他'; (byA[a]=byA[a]||[]).push(s.item); });
-    Object.entries(byA).forEach(([a, items]) => L.push(`   ${a}：${items.join('・')}`));
+    if (c.campsite_name) {
+      L.push(`📍 ${c.campsite_name}`);
+      if (c.campsite_address) L.push(`   ${c.campsite_address}`);
+    }
+    var dr = fmtRange(c.start_date, c.end_date);
+    if (dr) L.push(`📅 ${dr}`);
     L.push('');
+    if (c.meeting_place || c.meeting_time) {
+      L.push('🚗 集合');
+      if (c.meeting_place) L.push(`   ${c.meeting_place}`);
+      if (c.meeting_time)  L.push(`   ⏰ ${c.meeting_time.slice(0,5)}`);
+      L.push('');
+    }
+    if (members.length) {
+      L.push(`👥 ${members.map(m => m.headcount > 1 ? `${m.name}(${m.headcount}人)` : m.name).join('・')}`);
+      L.push('');
+    }
+    var food = todos.filter(t => t.category === 'food');
+    var act  = todos.filter(t => t.category === 'activity');
+    var oth  = todos.filter(t => t.category === 'other');
+    if (todos.length) {
+      L.push('📝 やること');
+      if (food.length) L.push(`   🍳 ${food.map(t=>t.text).join('・')}`);
+      if (act.length)  L.push(`   🎯 ${act.map(t=>t.text).join('・')}`);
+      if (oth.length)  L.push(`   ✨ ${oth.map(t=>t.text).join('・')}`);
+      L.push('');
+    }
+    if (shopping.length) {
+      L.push('🛒 買い出し');
+      var byA = {};
+      shopping.forEach(s => { var a = s.assignee || 'その他'; (byA[a]=byA[a]||[]).push(s.item); });
+      Object.entries(byA).forEach(([a, items]) => L.push(`   ${a}：${items.join('・')}`));
+      L.push('');
+    }
+    var selectedGearIds = new Set((gr.data || []).map(g => g.gear_item_id));
+    var selectedGear = gearItems.filter(g => selectedGearIds.has(g.id));
+    if (selectedGear.length) {
+      L.push('🎒 持ち物');
+      GEAR_CATS.forEach(cat => {
+        var items = selectedGear.filter(g => g.category === cat.key);
+        if (items.length) L.push(`   ${cat.icon} ${items.map(g => g.name).join('・')}`);
+      });
+      L.push('');
+    }
   }
-  var selectedGearIds = new Set((gr.data || []).map(g => g.gear_item_id));
-  var selectedGear = gearItems.filter(g => selectedGearIds.has(g.id));
-  if (selectedGear.length) {
-    L.push('🎒 持ち物');
-    GEAR_CATS.forEach(cat => {
-      var items = selectedGear.filter(g => g.category === cat.key);
-      if (items.length) L.push(`   ${cat.icon} ${items.map(g => g.name).join('・')}`);
-    });
-    L.push('');
-  }
+
   L.push('▼ ふぁみキャン△で詳細を確認！');
   L.push('https://fami-camp.vercel.app/');
 
