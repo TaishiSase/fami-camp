@@ -245,13 +245,17 @@ function renderDetail(camp, members, todos, shopping, photos, expenses, selected
   var campBadgeSection = campBadges.length ? `<div class="detail-section">
     <div class="detail-section-title">🏅 バッジ</div>
     <div class="camp-badge-list">
-      ${campBadges.map(b => `<div class="camp-badge-item">
-        <span class="camp-badge-icon">${b.emoji || '🏅'}</span>
-        <div class="camp-badge-info">
-          <div class="camp-badge-name">${esc(b.title)}</div>
-          ${b.description ? `<div class="camp-badge-desc">${esc(b.description)}</div>` : ''}
-        </div>
-      </div>`).join('')}
+      ${campBadges.map(b => {
+        var gi = allBadges.findIndex(x => x.id === b.id);
+        var [c1, c2] = BADGE_COLORS[gi % BADGE_COLORS.length];
+        return `<div class="camp-badge-item">
+          <div class="badge-medal badge-medal-lg" style="background:linear-gradient(145deg,${c2},${c1})">${b.emoji || '🏅'}</div>
+          <div class="camp-badge-info">
+            <div class="camp-badge-name">${esc(b.title)}</div>
+            ${b.description ? `<div class="camp-badge-desc">${esc(b.description)}</div>` : ''}
+          </div>
+        </div>`;
+      }).join('')}
     </div>
   </div>` : '';
 
@@ -1432,30 +1436,48 @@ async function loadBadges() {
   allBadges = data || [];
 }
 
+var BADGE_COLORS = [
+  ['#F59E0B','#FDE68A'],
+  ['#10B981','#6EE7B7'],
+  ['#6366F1','#A5B4FC'],
+  ['#EF4444','#FCA5A5'],
+  ['#8B5CF6','#C4B5FD'],
+  ['#EC4899','#F9A8D4'],
+  ['#0EA5E9','#7DD3FC'],
+  ['#F97316','#FED7AA']
+];
+
+function medalHtml(b, i) {
+  var [c1, c2] = BADGE_COLORS[i % BADGE_COLORS.length];
+  return `<div class="badge-strip-item">
+    <div class="badge-medal" style="background:linear-gradient(145deg,${c2},${c1})">${b.emoji || '🏅'}</div>
+    <div class="badge-strip-name">${esc(b.title)}</div>
+  </div>`;
+}
+
 function renderBadgeStrip() {
   var el = document.getElementById('badgeStrip');
   if (!el) return;
   if (!allBadges.length) { el.innerHTML = ''; return; }
   el.innerHTML = `<div class="badge-strip-inner">
-    <span class="badge-strip-label">🏅 バッジ</span>
-    <div class="badge-strip-scroll">${allBadges.map(b =>
-      `<div class="badge-strip-item" title="${esc(b.title)}">${b.emoji || '🏅'}</div>`
-    ).join('')}</div>
+    <span class="badge-strip-label">🏅</span>
+    <div class="badge-strip-scroll">${allBadges.map((b, i) => medalHtml(b, i)).join('')}</div>
   </div>`;
 }
 
 function buildBadgeListHtml() {
   if (!allBadges.length) return '<p class="empty-msg">まだバッジがありません</p>';
-  return allBadges.map(b => `
-    <div class="badge-collection-item">
-      <span class="badge-col-icon">${b.emoji || '🏅'}</span>
+  return allBadges.map((b, i) => {
+    var [c1, c2] = BADGE_COLORS[i % BADGE_COLORS.length];
+    return `<div class="badge-collection-item">
+      <div class="badge-medal badge-medal-lg" style="background:linear-gradient(145deg,${c2},${c1})">${b.emoji || '🏅'}</div>
       <div class="badge-col-info">
         <div class="badge-col-name">${esc(b.title)}</div>
         ${b.description ? `<div class="badge-col-desc">${esc(b.description)}</div>` : ''}
       </div>
       <button class="btn-gear-del" onclick="deleteBadge('${b.id}')">×</button>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 }
 
 function showAddBadgeModal(campId) {
