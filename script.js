@@ -723,6 +723,19 @@ async function saveCamp() {
       campId = row.id;
     }
 
+    // 名前変更を検出して expenses.paid_by も更新
+    if (editingCampId) {
+      var { data: oldMems } = await db.from('camp_members').select('name').eq('camp_id', campId);
+      var oldNames = (oldMems || []).map(m => m.name);
+      for (var ni = 0; ni < Math.min(oldNames.length, formMembers.length); ni++) {
+        if (oldNames[ni] !== formMembers[ni].name) {
+          await db.from('camp_expenses')
+            .update({ paid_by: formMembers[ni].name })
+            .eq('camp_id', campId).eq('paid_by', oldNames[ni]);
+        }
+      }
+    }
+
     await db.from('camp_members').delete().eq('camp_id', campId);
     if (formMembers.length)
       await db.from('camp_members').insert(
