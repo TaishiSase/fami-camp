@@ -21,12 +21,13 @@
       <div class="header-inner">
         <h1 class="app-title">⛺ ふぁみキャン△</h1>
         <div class="header-right-group">
-          <button class="btn-gear-header" onclick="showGearView()">🎒</button>
+          <button class="btn-gear-header" onclick="showMenuSheet()">☰</button>
           <button class="btn-icon-add" onclick="showNewCampForm()">＋</button>
         </div>
       </div>
     </header>
     <main class="list-main">
+      <div id="badgeStrip" class="badge-strip-wrap"></div>
       <section class="camp-section">
         <h2 class="section-title">🗓️ 予定・進行中</h2>
         <div id="plannedList" class="camp-list"><div class="loading-msg">読み込み中…</div></div>
@@ -77,6 +78,7 @@
           <label class="field-label">住所（天気取得に使用）</label>
           <input type="text" id="fCampsiteAddress" class="field-input" placeholder="例：山梨県山梨市...">
         </div>
+        <button type="button" class="btn-wishlist-pick" onclick="showWishlistPickModal()">⭐ 行きたいリストから入力</button>
         <div class="field-row">
           <div class="field">
             <label class="field-label">開始日</label>
@@ -170,6 +172,106 @@
     </div>
   </div>
 
+  <!-- ===== 記録簿画面 ===== -->
+  <div id="viewDashboard" class="view">
+    <header class="app-header">
+      <div class="header-inner">
+        <button class="btn-back" onclick="showView('list')">← 戻る</button>
+        <span class="form-header-title">📊 記録簿</span>
+        <button class="btn-gear-header" onclick="showAddBadgeModal(null)">🏅</button>
+      </div>
+    </header>
+    <div class="dash-body" id="dashboardContent"><div class="loading-msg" style="padding:24px">読み込み中…</div></div>
+  </div>
+
+  <!-- ===== ギャラリー画面 ===== -->
+  <div id="viewGallery" class="view">
+    <header class="app-header">
+      <div class="header-inner">
+        <button class="btn-back" onclick="showView('list')">← 戻る</button>
+        <span class="form-header-title">📷 ギャラリー</span>
+      </div>
+    </header>
+    <div class="gallery-body" id="galleryContent"><div class="loading-msg" style="padding:24px">読み込み中…</div></div>
+  </div>
+
+  <!-- ===== 行きたいリスト画面 ===== -->
+  <div id="viewWishlist" class="view">
+    <header class="app-header">
+      <div class="header-inner">
+        <button class="btn-back" onclick="showView('list')">← 戻る</button>
+        <span class="form-header-title">⭐ 行きたいリスト</span>
+        <button class="btn-icon-add" onclick="showAddWishlistModal()">＋</button>
+      </div>
+    </header>
+    <div class="wishlist-body" id="wishlistContent"><div class="loading-msg" style="padding:24px">読み込み中…</div></div>
+  </div>
+
+  <!-- ===== モーダル: メニューシート ===== -->
+  <div id="menuSheet" class="modal-overlay" onclick="hideMenuSheet()">
+    <div class="bottom-sheet" onclick="event.stopPropagation()">
+      <div class="sheet-handle"></div>
+      <div class="menu-grid">
+        <button class="menu-item" onclick="hideMenuSheet();showGearView()"><span class="menu-icon">🎒</span><span>器具管理</span></button>
+        <button class="menu-item" onclick="hideMenuSheet();showDashboard()"><span class="menu-icon">📊</span><span>記録簿</span></button>
+        <button class="menu-item" onclick="hideMenuSheet();showGallery()"><span class="menu-icon">📷</span><span>ギャラリー</span></button>
+        <button class="menu-item" onclick="hideMenuSheet();showWishlist()"><span class="menu-icon">⭐</span><span>行きたいリスト</span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== モーダル: バッジ追加 ===== -->
+  <div id="addBadgeModal" class="modal-overlay" onclick="hideAddBadgeModal()">
+    <div class="bottom-sheet" onclick="event.stopPropagation()">
+      <div class="sheet-handle"></div>
+      <h3 class="sheet-title">🏅 バッジを追加</h3>
+      <div class="badge-presets" id="badgePresets"></div>
+      <div class="field" style="margin-top:14px">
+        <label class="field-label">バッジ名 <span class="required">*</span></label>
+        <input type="text" id="badgeNameInput" class="field-input" placeholder="例：初キャンプ！">
+      </div>
+      <div class="field">
+        <label class="field-label">アイコン（絵文字）</label>
+        <input type="text" id="badgeIconInput" class="field-input" placeholder="例：🏅">
+      </div>
+      <div class="field">
+        <label class="field-label">説明（任意）</label>
+        <input type="text" id="badgeDescInput" class="field-input" placeholder="例：初めてのキャンプを達成">
+      </div>
+      <button class="btn-primary" onclick="saveBadge()">追加する</button>
+    </div>
+  </div>
+
+  <!-- ===== モーダル: 行きたいリスト追加 ===== -->
+  <div id="addWishlistModal" class="modal-overlay" onclick="hideAddWishlistModal()">
+    <div class="bottom-sheet" onclick="event.stopPropagation()">
+      <div class="sheet-handle"></div>
+      <h3 class="sheet-title">⭐ 行きたいリストに追加</h3>
+      <div class="field" style="margin-top:12px">
+        <label class="field-label">キャンプ場名 <span class="required">*</span></label>
+        <input type="text" id="wishNameInput" class="field-input" placeholder="例：ほったらかしキャンプ場">
+      </div>
+      <div class="field">
+        <label class="field-label">住所（任意）</label>
+        <input type="text" id="wishAddressInput" class="field-input" placeholder="例：山梨県山梨市...">
+      </div>
+      <div class="field">
+        <label class="field-label">メモ（任意）</label>
+        <input type="text" id="wishMemoInput" class="field-input" placeholder="例：景色がきれい、予約が取りやすい">
+      </div>
+      <button class="btn-primary" onclick="saveWishlistItem()">追加する</button>
+    </div>
+  </div>
+
+  <!-- ===== モーダル: 行きたいリストから選択 ===== -->
+  <div id="wishlistPickModal" class="modal-overlay" onclick="hideWishlistPickModal()">
+    <div class="bottom-sheet" onclick="event.stopPropagation()">
+      <div class="sheet-handle"></div>
+      <h3 class="sheet-title">⭐ 行きたいリストから選択</h3>
+      <div id="wishlistPickList" class="wishlist-pick-list"></div>
+    </div>
+  </div>
+
   <!-- ===== モーダル: グループ保存 ===== -->
   <div id="saveGroupModal" class="modal-overlay" onclick="hideSaveGroupModal()">
     <div class="bottom-sheet" onclick="event.stopPropagation()">
@@ -220,6 +322,10 @@
         <span class="star" onclick="setRating(5)">★</span>
       </div>
       <p class="rating-label" id="ratingLabel">タップして評価</p>
+      <div class="dr-section">
+        <p class="sheet-sub" style="margin-top:16px;margin-bottom:8px">詳細評価（任意）</p>
+        <div id="detailRatingCats"></div>
+      </div>
       <button class="btn-primary btn-complete-confirm" onclick="confirmComplete()">記録として保存する</button>
     </div>
   </div>

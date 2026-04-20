@@ -18,6 +18,31 @@ var pendingPhotoSlot  = null;
 var pendingPhotoId    = null;
 var pendingPhotoFile  = null;
 var gearItems = [];
+var wishlistItems = [];
+var allBadges = [];
+var badgeTargetCampId = null;
+var pendingDetailRatings = {};
+
+// ===== 評価カテゴリ =====
+var RATING_CATS = [
+  { key: 'rating_location', icon: '📍', label: '立地' },
+  { key: 'rating_cost',     icon: '💰', label: '費用' },
+  { key: 'rating_facility', icon: '🚿', label: '設備' },
+  { key: 'rating_kids',     icon: '👶', label: '子供向け' },
+  { key: 'rating_nature',   icon: '🌿', label: '自然度' }
+];
+
+// ===== マイルストーンバッジ =====
+var MILESTONE_BADGES = [
+  { icon: '🎉', name: '初キャンプ！',   desc: '記念すべき最初のキャンプ' },
+  { icon: '🔥', name: '焚き火マスター', desc: '焚き火を楽しんだ' },
+  { icon: '⭐', name: '5回達成！',      desc: 'キャンプ5回の節目' },
+  { icon: '🌧️', name: '雨キャン',      desc: '雨の中でもキャンプを楽しんだ' },
+  { icon: '❄️', name: '冬キャン',      desc: '冬のキャンプを制覇' },
+  { icon: '🌊', name: '海キャン',      desc: '海辺でキャンプ' },
+  { icon: '🏔️', name: '山キャン',      desc: '山でキャンプ' },
+  { icon: '🌙', name: '夜空が最高',    desc: '満天の星空の夜' }
+];
 
 // ===== 器具カテゴリ =====
 var GEAR_CATS = [
@@ -45,7 +70,8 @@ async function init() {
     var res = await fetch('config.json');
     var cfg = await res.json();
     db = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey);
-    await Promise.all([loadCamps(), loadFavoriteGroups(), loadGearItems()]);
+    await Promise.all([loadCamps(), loadFavoriteGroups(), loadGearItems(), loadWishlistItems(), loadBadges()]);
+    renderBadgeStrip();
     var campParam = new URLSearchParams(location.search).get('camp');
     if (campParam) await showCampDetail(campParam);
   } catch (e) {
@@ -195,12 +221,48 @@ function renderDetail(camp, members, todos, shopping, photos, expenses, selected
   var ratingHtml = (camp.status === 'completed' && camp.rating)
     ? `<div class="detail-rating">${'★'.repeat(camp.rating)}</div>` : '';
 
+  // 詳細評価セクション（完了キャンプのみ）
+  var catRatingSection = '';
+  if (camp.status === 'completed') {
+    catRatingSection = `<div class="detail-section">
+      <div class="detail-section-title">⭐ 詳細評価</div>
+      <div class="detail-cat-ratings">
+        ${RATING_CATS.map(r => {
+          var v = camp[r.key] || 0;
+          return `<div class="detail-cat-row">
+            <span class="detail-cat-label">${r.icon} ${r.label}</span>
+            <div class="detail-cat-stars">
+              ${[1,2,3,4,5].map(sv => `<span class="detail-cat-star${sv <= v ? ' active' : ''}" data-field="${r.key}" data-val="${sv}" onclick="setCampDetailRating('${camp.id}','${r.key}',${sv})">${sv <= v ? '★' : '☆'}</span>`).join('')}
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }
+
+  // このキャンプのバッジ
+  var campBadges = allBadges.filter(b => b.camp_id === camp.id);
+  var campBadgeSection = campBadges.length ? `<div class="detail-section">
+    <div class="detail-section-title">🏅 バッジ</div>
+    <div class="camp-badge-list">
+      ${campBadges.map(b => `<div class="camp-badge-item">
+        <span class="camp-badge-icon">${b.icon || '🏅'}</span>
+        <div class="camp-badge-info">
+          <div class="camp-badge-name">${esc(b.name)}</div>
+          ${b.description ? `<div class="camp-badge-desc">${esc(b.description)}</div>` : ''}
+        </div>
+      </div>`).join('')}
+    </div>
+  </div>` : '';
+
   // アクションボタン
   var actionHtml = '';
   if (camp.status === 'planned') {
     actionHtml += `<button class="btn-start" onclick="startCamping('${camp.id}')">🏕️ キャンプ開始！</button>`;
   } else if (camp.status === 'camping') {
     actionHtml += `<button class="btn-complete" onclick="showCompleteModal('${camp.id}','${esc(camp.title)}')">✅ キャンプ完了！記録にする</button>`;
+  } else if (camp.status === 'completed') {
+    actionHtml += `<button class="btn-add-badge" onclick="showAddBadgeModal('${camp.id}')">🏅 バッジを追加</button>`;
   }
   actionHtml += `<button class="btn-line" onclick="shareToLine('${camp.id}')">📤 LINEでシェア</button>`;
 
@@ -295,6 +357,9 @@ function renderDetail(camp, members, todos, shopping, photos, expenses, selected
         ${camp.notes ? `<p class="notes-text">${esc(camp.notes)}</p>` : ''}
         ${camp.want_to_revisit ? '<div class="revisit-flag">⭐ またここに行きたい！</div>' : ''}
       </div>` : ''}
+
+      ${catRatingSection}
+      ${campBadgeSection}
 
       <div class="detail-actions">${actionHtml}</div>
     </div>`;
@@ -819,10 +884,32 @@ async function submitPhoto() {
 // ===== 完了・評価 =====
 function showCompleteModal(campId, title) {
   pendingCompleteId = campId; selectedRating = 0;
+  pendingDetailRatings = {};
   document.getElementById('completeCampName').textContent = title;
   document.getElementById('ratingLabel').textContent = 'タップして評価';
   updateStars(0);
+  renderDetailRatingCats();
   document.getElementById('completeModal').classList.add('active');
+}
+
+function renderDetailRatingCats() {
+  var el = document.getElementById('detailRatingCats');
+  if (!el) return;
+  el.innerHTML = RATING_CATS.map(r => `
+    <div class="dr-cat-row">
+      <span class="dr-cat-label">${r.icon} ${r.label}</span>
+      <div class="dr-stars">
+        ${[1,2,3,4,5].map(v => `<span class="dr-star" data-key="${r.key}" data-val="${v}" onclick="setDetailRating('${r.key}',${v})">★</span>`).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+function setDetailRating(key, val) {
+  pendingDetailRatings[key] = val;
+  document.querySelectorAll(`.dr-star[data-key="${key}"]`).forEach(s => {
+    s.classList.toggle('active', parseInt(s.dataset.val) <= val);
+  });
 }
 function hideCompleteModal() { document.getElementById('completeModal').classList.remove('active'); }
 function setRating(val) {
@@ -835,9 +922,21 @@ function updateStars(val) {
 }
 async function confirmComplete() {
   if (!selectedRating) { alert('評価を選んでください'); return; }
-  var { error } = await db.from('camps').update({ status: 'completed', rating: selectedRating }).eq('id', pendingCompleteId);
+  var update = { status: 'completed', rating: selectedRating };
+  RATING_CATS.forEach(r => { if (pendingDetailRatings[r.key]) update[r.key] = pendingDetailRatings[r.key]; });
+  var { error } = await db.from('camps').update(update).eq('id', pendingCompleteId);
   if (error) { alert('更新に失敗しました'); return; }
   hideCompleteModal(); await loadCamps(); await showCampDetail(pendingCompleteId);
+}
+
+async function setCampDetailRating(campId, field, val) {
+  var update = {}; update[field] = val;
+  await db.from('camps').update(update).eq('id', campId);
+  document.querySelectorAll(`.detail-cat-star[data-field="${field}"]`).forEach(s => {
+    var sv = parseInt(s.dataset.val);
+    s.classList.toggle('active', sv <= val);
+    s.textContent = sv <= val ? '★' : '☆';
+  });
 }
 
 // ===== 削除 =====
@@ -1099,6 +1198,294 @@ async function shareGearListToLine() {
   L.push('▼ ふぁみキャン△');
   L.push('https://fami-camp.vercel.app/');
   await openShare(L.join('\n'));
+}
+
+// ===== メニューシート =====
+function showMenuSheet() { document.getElementById('menuSheet').classList.add('active'); }
+function hideMenuSheet() { document.getElementById('menuSheet').classList.remove('active'); }
+
+// ===== 記録簿 =====
+async function showDashboard() {
+  showView('dashboard');
+  var el = document.getElementById('dashboardContent');
+  el.innerHTML = '<div style="padding:24px;color:#78716C">読み込み中…</div>';
+
+  var { data: camps } = await db.from('camps')
+    .select('*, camp_members(headcount)')
+    .eq('status', 'completed')
+    .order('start_date', { ascending: false });
+  camps = camps || [];
+
+  var totalCamps = camps.length;
+  var totalNights = camps.reduce((s, c) => {
+    if (c.start_date && c.end_date && c.start_date !== c.end_date)
+      return s + Math.round((new Date(c.end_date) - new Date(c.start_date)) / 86400000);
+    return s + 1;
+  }, 0);
+  var totalPeople = camps.reduce((s, c) =>
+    s + (c.camp_members || []).reduce((ss, m) => ss + (m.headcount || 1), 0), 0);
+
+  var statsHtml = `<div class="dash-stats">
+    <div class="dash-stat"><div class="dash-stat-num">${totalCamps}</div><div class="dash-stat-label">回のキャンプ</div></div>
+    <div class="dash-stat"><div class="dash-stat-num">${totalNights}</div><div class="dash-stat-label">泊の思い出</div></div>
+    <div class="dash-stat"><div class="dash-stat-num">${totalPeople}</div><div class="dash-stat-label">人のべ参加</div></div>
+  </div>`;
+
+  var byCampYear = {};
+  camps.forEach(c => { if (c.start_date) { var y = c.start_date.slice(0,4); byCampYear[y] = (byCampYear[y]||0)+1; } });
+  var years = Object.keys(byCampYear).sort();
+  var maxCount = Math.max(1, ...Object.values(byCampYear));
+  var chartHtml = years.length ? `<div class="dash-section">
+    <div class="dash-section-title">📅 年別キャンプ回数</div>
+    <div class="dash-chart">${years.map(y => `
+      <div class="dash-bar-row">
+        <div class="dash-bar-label">${y}</div>
+        <div class="dash-bar-track"><div class="dash-bar-fill" style="width:${Math.round(byCampYear[y]/maxCount*100)}%"></div></div>
+        <div class="dash-bar-count">${byCampYear[y]}</div>
+      </div>`).join('')}
+    </div>
+  </div>` : '';
+
+  var sorted = [...camps].sort((a,b) => (b.rating||0) - (a.rating||0));
+  var recordHtml = sorted.length ? `<div class="dash-section">
+    <div class="dash-section-title">🏕️ キャンプ記録</div>
+    ${sorted.map(c => {
+      var stars = c.rating ? '★'.repeat(c.rating) + '<span class="dash-dim-stars">★</span>'.repeat(5-c.rating) : '';
+      var cats = RATING_CATS.map(r => {
+        var v = c[r.key] || 0;
+        return v ? `<span class="dash-cat-badge" title="${r.label}">${r.icon}${'★'.repeat(v)}</span>` : '';
+      }).join('');
+      return `<div class="dash-camp-card" onclick="showCampDetail('${c.id}')">
+        <div class="dash-camp-title">${esc(c.title)}</div>
+        ${c.campsite_name ? `<div class="dash-camp-meta">📍 ${esc(c.campsite_name)}</div>` : ''}
+        ${c.start_date ? `<div class="dash-camp-meta">📅 ${fmtRange(c.start_date, c.end_date)}</div>` : ''}
+        ${stars ? `<div class="dash-camp-stars">${stars}</div>` : ''}
+        ${cats ? `<div class="dash-cat-badges">${cats}</div>` : ''}
+      </div>`;
+    }).join('')}
+  </div>` : '';
+
+  var badgesSection = `<div class="dash-section" id="dashBadgeSection">
+    <div class="dash-section-title">🏅 バッジコレクション</div>
+    <div id="dashBadgeList">${buildBadgeListHtml()}</div>
+    <button class="btn-primary" onclick="showAddBadgeModal(null)" style="margin-top:14px">＋ バッジを追加</button>
+  </div>`;
+
+  el.innerHTML = statsHtml + chartHtml + recordHtml + badgesSection;
+}
+
+// ===== ギャラリー =====
+async function showGallery() {
+  showView('gallery');
+  var el = document.getElementById('galleryContent');
+  el.innerHTML = '<div style="padding:24px;color:#78716C">読み込み中…</div>';
+
+  var [photosRes, campsRes] = await Promise.all([
+    db.from('camp_photos').select('*').order('created_at', { ascending: false }),
+    db.from('camps').select('id,title,start_date').order('start_date', { ascending: false })
+  ]);
+  var photos = photosRes.data || [];
+  var camps  = campsRes.data || [];
+
+  if (!photos.length) { el.innerHTML = '<p class="empty-msg" style="padding:24px">まだ写真がありません</p>'; return; }
+
+  var campMap = {};
+  camps.forEach(c => { campMap[c.id] = c; });
+  var byCamp = {};
+  photos.forEach(p => { (byCamp[p.camp_id] = byCamp[p.camp_id] || []).push(p); });
+  var campIds = Object.keys(byCamp).sort((a,b) => {
+    var ca = campMap[a], cb = campMap[b];
+    return ((cb&&cb.start_date)||'').localeCompare((ca&&ca.start_date)||'');
+  });
+
+  el.innerHTML = campIds.map(cid => {
+    var camp = campMap[cid];
+    var title = camp ? esc(camp.title) : '不明';
+    var dateStr = camp && camp.start_date ? fmtDate(camp.start_date) : '';
+    return `<div class="gallery-group">
+      <div class="gallery-group-hdr" onclick="showCampDetail('${cid}')">
+        <div class="gallery-group-info"><div class="gallery-group-title">${title}</div>${dateStr?`<div class="gallery-group-date">${dateStr}</div>`:''}</div>
+        <span class="camp-arrow">›</span>
+      </div>
+      <div class="gallery-grid">${byCamp[cid].map(p =>
+        `<div class="gallery-photo" onclick="window.open('${p.image_url}','_blank')">
+          <img src="${p.image_url}" alt="${esc(p.comment||'')}" loading="lazy">
+          ${p.comment ? `<div class="gallery-caption">${esc(p.comment)}</div>` : ''}
+        </div>`
+      ).join('')}</div>
+    </div>`;
+  }).join('');
+}
+
+// ===== 行きたいリスト =====
+async function loadWishlistItems() {
+  if (!db) return;
+  var { data } = await db.from('wishlist_camps').select('*').order('created_at', { ascending: false });
+  wishlistItems = data || [];
+}
+
+async function showWishlist() {
+  showView('wishlist');
+  renderWishlist();
+}
+
+function renderWishlist() {
+  var el = document.getElementById('wishlistContent');
+  if (!wishlistItems.length) {
+    el.innerHTML = '<p class="empty-msg" style="padding:24px">まだありません<br><span style="font-size:13px;color:var(--muted)">右上の ＋ から追加してください</span></p>';
+    return;
+  }
+  el.innerHTML = wishlistItems.map(w => `
+    <div class="wishlist-card">
+      <div class="wishlist-card-main">
+        <div class="wishlist-name">⭐ ${esc(w.name)}</div>
+        ${w.address ? `<div class="wishlist-detail">📍 ${esc(w.address)}</div>` : ''}
+        ${w.memo    ? `<div class="wishlist-detail" style="color:var(--muted)">${esc(w.memo)}</div>` : ''}
+      </div>
+      <div class="wishlist-actions">
+        <button class="btn-wishlist-plan" onclick="planFromWishlist('${w.id}')">計画する</button>
+        <button class="btn-gear-del" onclick="deleteWishlistItem('${w.id}')">×</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function showAddWishlistModal() {
+  document.getElementById('wishNameInput').value = '';
+  document.getElementById('wishAddressInput').value = '';
+  document.getElementById('wishMemoInput').value = '';
+  document.getElementById('addWishlistModal').classList.add('active');
+}
+function hideAddWishlistModal() { document.getElementById('addWishlistModal').classList.remove('active'); }
+
+async function saveWishlistItem() {
+  var name    = document.getElementById('wishNameInput').value.trim();
+  var address = document.getElementById('wishAddressInput').value.trim() || null;
+  var memo    = document.getElementById('wishMemoInput').value.trim() || null;
+  if (!name) { alert('キャンプ場名を入力してください'); return; }
+  var { error } = await db.from('wishlist_camps').insert({ name, address, memo });
+  if (error) { alert('追加に失敗しました'); return; }
+  await loadWishlistItems(); renderWishlist(); hideAddWishlistModal();
+}
+
+async function deleteWishlistItem(id) {
+  if (!confirm('リストから削除しますか？')) return;
+  var { error } = await db.from('wishlist_camps').delete().eq('id', id);
+  if (error) { alert('削除に失敗しました'); return; }
+  await loadWishlistItems(); renderWishlist();
+}
+
+function planFromWishlist(id) {
+  var w = wishlistItems.find(x => x.id === id);
+  if (!w) return;
+  showNewCampForm();
+  setTimeout(() => {
+    document.getElementById('fCampsiteName').value    = w.name    || '';
+    document.getElementById('fCampsiteAddress').value = w.address || '';
+  }, 0);
+}
+
+function showWishlistPickModal() {
+  var el = document.getElementById('wishlistPickList');
+  if (!wishlistItems.length) {
+    el.innerHTML = '<p class="empty-msg" style="padding:12px">行きたいリストはまだありません</p>';
+  } else {
+    el.innerHTML = wishlistItems.map(w => `
+      <div class="wishlist-pick-item" onclick="applyWishlistItem('${w.id}')">
+        <div class="wishlist-name">⭐ ${esc(w.name)}</div>
+        ${w.address ? `<div class="wishlist-detail">${esc(w.address)}</div>` : ''}
+      </div>
+    `).join('');
+  }
+  document.getElementById('wishlistPickModal').classList.add('active');
+}
+function hideWishlistPickModal() { document.getElementById('wishlistPickModal').classList.remove('active'); }
+
+function applyWishlistItem(id) {
+  var w = wishlistItems.find(x => x.id === id);
+  if (!w) return;
+  document.getElementById('fCampsiteName').value    = w.name    || '';
+  document.getElementById('fCampsiteAddress').value = w.address || '';
+  hideWishlistPickModal();
+}
+
+// ===== バッジ =====
+async function loadBadges() {
+  if (!db) return;
+  var { data } = await db.from('badges').select('*').order('created_at', { ascending: false });
+  allBadges = data || [];
+}
+
+function renderBadgeStrip() {
+  var el = document.getElementById('badgeStrip');
+  if (!el) return;
+  if (!allBadges.length) { el.innerHTML = ''; return; }
+  el.innerHTML = `<div class="badge-strip-inner">
+    <span class="badge-strip-label">🏅 バッジ</span>
+    <div class="badge-strip-scroll">${allBadges.map(b =>
+      `<div class="badge-strip-item" title="${esc(b.name)}">${b.icon || '🏅'}</div>`
+    ).join('')}</div>
+  </div>`;
+}
+
+function buildBadgeListHtml() {
+  if (!allBadges.length) return '<p class="empty-msg">まだバッジがありません</p>';
+  return allBadges.map(b => `
+    <div class="badge-collection-item">
+      <span class="badge-col-icon">${b.icon || '🏅'}</span>
+      <div class="badge-col-info">
+        <div class="badge-col-name">${esc(b.name)}</div>
+        ${b.description ? `<div class="badge-col-desc">${esc(b.description)}</div>` : ''}
+      </div>
+      <button class="btn-gear-del" onclick="deleteBadge('${b.id}')">×</button>
+    </div>
+  `).join('');
+}
+
+function showAddBadgeModal(campId) {
+  badgeTargetCampId = campId;
+  document.getElementById('badgeNameInput').value = '';
+  document.getElementById('badgeIconInput').value = '';
+  document.getElementById('badgeDescInput').value = '';
+  document.getElementById('badgePresets').innerHTML = MILESTONE_BADGES.map((b, i) =>
+    `<button class="badge-preset-btn" onclick="selectBadgePreset(${i})">${b.icon} ${b.name}</button>`
+  ).join('');
+  document.getElementById('addBadgeModal').classList.add('active');
+}
+function hideAddBadgeModal() { document.getElementById('addBadgeModal').classList.remove('active'); }
+
+function selectBadgePreset(i) {
+  var b = MILESTONE_BADGES[i];
+  document.getElementById('badgeNameInput').value = b.name;
+  document.getElementById('badgeIconInput').value = b.icon;
+  document.getElementById('badgeDescInput').value = b.desc;
+}
+
+async function saveBadge() {
+  var name = document.getElementById('badgeNameInput').value.trim();
+  var icon = document.getElementById('badgeIconInput').value.trim() || '🏅';
+  var desc = document.getElementById('badgeDescInput').value.trim() || null;
+  if (!name) { alert('バッジ名を入力してください'); return; }
+  var record = { name, icon, description: desc };
+  if (badgeTargetCampId) record.camp_id = badgeTargetCampId;
+  var { error } = await db.from('badges').insert(record);
+  if (error) { alert('追加に失敗しました'); return; }
+  await loadBadges();
+  renderBadgeStrip();
+  hideAddBadgeModal();
+  var dashEl = document.getElementById('dashBadgeList');
+  if (dashEl) dashEl.innerHTML = buildBadgeListHtml();
+  if (badgeTargetCampId === currentCampId) await showCampDetail(currentCampId);
+}
+
+async function deleteBadge(id) {
+  if (!confirm('このバッジを削除しますか？')) return;
+  var { error } = await db.from('badges').delete().eq('id', id);
+  if (error) { alert('削除に失敗しました'); return; }
+  await loadBadges();
+  renderBadgeStrip();
+  var dashEl = document.getElementById('dashBadgeList');
+  if (dashEl) dashEl.innerHTML = buildBadgeListHtml();
 }
 
 // ===== ユーティリティ =====
