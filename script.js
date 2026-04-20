@@ -643,7 +643,7 @@ function photoSlots(type, photos, max) {
 
 // ===== フォーム =====
 function showNewCampForm() {
-  editingCampId = null; formMembers = []; formTodos = []; formShopping = [];
+  editingCampId = null; formMembers = [{ name: '佐瀬家', headcount: 3 }]; formTodos = []; formShopping = [];
   document.getElementById('formTitle').textContent = '新しいキャンプ';
   clearForm(); renderFavGroupsRow();
   renderFormMembers(); renderFormTodos(); renderFormShopping(); updateAssigneeOptions();
@@ -762,9 +762,28 @@ function addMemberFromInput() {
   renderFormMembers(); updateAssigneeOptions();
 }
 function removeMember(i) { formMembers.splice(i, 1); renderFormMembers(); updateAssigneeOptions(); }
+function updateMemberCount(i, val) {
+  formMembers[i].headcount = Math.max(1, Math.min(20, parseInt(val) || 1));
+  updateAssigneeOptions();
+}
+function editMember(i) {
+  var m = formMembers[i];
+  document.getElementById('memberInput').value      = m.name;
+  document.getElementById('memberHeadcount').value  = m.headcount || 1;
+  formMembers.splice(i, 1);
+  renderFormMembers(); updateAssigneeOptions();
+  document.getElementById('memberInput').focus();
+}
 function renderFormMembers() {
   document.getElementById('memberList').innerHTML = formMembers.map((m, i) =>
-    `<span class="member-chip">${esc(m.name)}${m.headcount > 1 ? `(${m.headcount}人)` : ''}<button type="button" class="chip-remove" onclick="removeMember(${i})">×</button></span>`
+    `<span class="member-chip">
+      <button type="button" class="chip-edit-btn" onclick="editMember(${i})" title="名前を編集">✏️</button>
+      <span class="chip-name">${esc(m.name)}</span>
+      <input type="number" class="chip-count-input" value="${m.headcount || 1}" min="1" max="20"
+        onchange="updateMemberCount(${i},this.value)" oninput="updateMemberCount(${i},this.value)">
+      <span class="chip-unit">人</span>
+      <button type="button" class="chip-remove" onclick="removeMember(${i})">×</button>
+    </span>`
   ).join('');
 }
 function updateAssigneeOptions() {
@@ -1260,13 +1279,12 @@ async function showDashboard() {
       return s + Math.round((new Date(c.end_date) - new Date(c.start_date)) / 86400000);
     return s + 1;
   }, 0);
-  var totalPeople = camps.reduce((s, c) =>
-    s + (c.camp_members || []).reduce((ss, m) => ss + (m.headcount || 1), 0), 0);
+  var totalSites = new Set(camps.map(c => c.campsite_name).filter(Boolean)).size;
 
   var statsHtml = `<div class="dash-stats">
     <div class="dash-stat"><div class="dash-stat-num">${totalCamps}</div><div class="dash-stat-label">回のキャンプ</div></div>
     <div class="dash-stat"><div class="dash-stat-num">${totalNights}</div><div class="dash-stat-label">泊の思い出</div></div>
-    <div class="dash-stat"><div class="dash-stat-num">${totalPeople}</div><div class="dash-stat-label">人のべ参加</div></div>
+    <div class="dash-stat"><div class="dash-stat-num">${totalSites}</div><div class="dash-stat-label">ヶ所制覇！</div></div>
   </div>`;
 
   var byCampYear = {};
