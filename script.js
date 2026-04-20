@@ -246,9 +246,9 @@ function renderDetail(camp, members, todos, shopping, photos, expenses, selected
     <div class="detail-section-title">🏅 バッジ</div>
     <div class="camp-badge-list">
       ${campBadges.map(b => `<div class="camp-badge-item">
-        <span class="camp-badge-icon">${b.icon || '🏅'}</span>
+        <span class="camp-badge-icon">${b.emoji || '🏅'}</span>
         <div class="camp-badge-info">
-          <div class="camp-badge-name">${esc(b.name)}</div>
+          <div class="camp-badge-name">${esc(b.title)}</div>
           ${b.description ? `<div class="camp-badge-desc">${esc(b.description)}</div>` : ''}
         </div>
       </div>`).join('')}
@@ -1423,7 +1423,7 @@ function renderBadgeStrip() {
   el.innerHTML = `<div class="badge-strip-inner">
     <span class="badge-strip-label">🏅 バッジ</span>
     <div class="badge-strip-scroll">${allBadges.map(b =>
-      `<div class="badge-strip-item" title="${esc(b.name)}">${b.icon || '🏅'}</div>`
+      `<div class="badge-strip-item" title="${esc(b.title)}">${b.emoji || '🏅'}</div>`
     ).join('')}</div>
   </div>`;
 }
@@ -1432,9 +1432,9 @@ function buildBadgeListHtml() {
   if (!allBadges.length) return '<p class="empty-msg">まだバッジがありません</p>';
   return allBadges.map(b => `
     <div class="badge-collection-item">
-      <span class="badge-col-icon">${b.icon || '🏅'}</span>
+      <span class="badge-col-icon">${b.emoji || '🏅'}</span>
       <div class="badge-col-info">
-        <div class="badge-col-name">${esc(b.name)}</div>
+        <div class="badge-col-name">${esc(b.title)}</div>
         ${b.description ? `<div class="badge-col-desc">${esc(b.description)}</div>` : ''}
       </div>
       <button class="btn-gear-del" onclick="deleteBadge('${b.id}')">×</button>
@@ -1466,7 +1466,7 @@ async function saveBadge() {
   var icon = document.getElementById('badgeIconInput').value.trim() || '🏅';
   var desc = document.getElementById('badgeDescInput').value.trim() || null;
   if (!name) { alert('バッジ名を入力してください'); return; }
-  var record = { name, icon, description: desc };
+  var record = { title: name, emoji: icon, description: desc };
   if (badgeTargetCampId) record.camp_id = badgeTargetCampId;
   var { error } = await db.from('badges').insert(record);
   if (error) { alert('追加に失敗しました: ' + error.message); return; }
