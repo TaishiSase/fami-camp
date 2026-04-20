@@ -766,19 +766,15 @@ function updateMemberCount(i, val) {
   formMembers[i].headcount = Math.max(1, Math.min(20, parseInt(val) || 1));
   updateAssigneeOptions();
 }
-function editMember(i) {
-  var m = formMembers[i];
-  document.getElementById('memberInput').value      = m.name;
-  document.getElementById('memberHeadcount').value  = m.headcount || 1;
-  formMembers.splice(i, 1);
-  renderFormMembers(); updateAssigneeOptions();
-  document.getElementById('memberInput').focus();
+function updateMemberName(i, val) {
+  var name = val.trim();
+  if (name) { formMembers[i].name = name; updateAssigneeOptions(); }
 }
 function renderFormMembers() {
   document.getElementById('memberList').innerHTML = formMembers.map((m, i) =>
     `<span class="member-chip">
-      <button type="button" class="chip-edit-btn" onclick="editMember(${i})" title="名前を編集">✏️</button>
-      <span class="chip-name">${esc(m.name)}</span>
+      <input type="text" class="chip-name-input" value="${esc(m.name)}"
+        onchange="updateMemberName(${i},this.value)" onblur="updateMemberName(${i},this.value)">
       <input type="number" class="chip-count-input" value="${m.headcount || 1}" min="1" max="20"
         onchange="updateMemberCount(${i},this.value)" oninput="updateMemberCount(${i},this.value)">
       <span class="chip-unit">人</span>
