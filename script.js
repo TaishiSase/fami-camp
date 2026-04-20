@@ -345,7 +345,7 @@ function renderDetail(camp, members, todos, shopping, photos, expenses, selected
 
       <div class="detail-section" id="expenseSection">
         <div class="detail-section-title">💰 費用・精算</div>
-        <div id="expenseList">${buildExpenseHtml(expenses)}</div>
+        <div id="expenseList">${buildExpenseHtml(expenses, members)}</div>
         <div class="expense-add-row">
           <input type="text"   id="expDescInput"   class="expense-desc-input"   placeholder="例：イオン 食材">
           <input type="number" id="expAmountInput" class="expense-amount-input" placeholder="金額">
@@ -511,20 +511,30 @@ function buildMemberOptions(members) {
   return '<option value="">支払い者</option>' + members.map(m => `<option value="${esc(m.name)}">${esc(m.name)}</option>`).join('');
 }
 
-function buildExpenseHtml(expenses) {
+function buildExpenseHtml(expenses, members) {
   if (!expenses.length) return '<p class="empty-msg" id="expEmpty">まだありません</p>';
-  return expenses.map(e =>
-    `<div class="expense-row" id="exp-${e.id}">
+  var memberNames = new Set((members || []).map(m => m.name));
+  return expenses.map(e => {
+    var unknown = members && members.length && !memberNames.has(e.paid_by);
+    return `<div class="expense-row" id="exp-${e.id}">
       <span class="expense-desc">${esc(e.description)}</span>
-      <span class="expense-payer">${esc(e.paid_by)}</span>
+      <span class="expense-payer${unknown ? ' expense-payer-unknown' : ''}">${esc(e.paid_by)}${unknown ? ' ⚠️' : ''}</span>
       <span class="expense-amount">¥${Number(e.amount).toLocaleString()}</span>
       <button class="expense-del" onclick="deleteExpense('${e.id}')">×</button>
-    </div>`
-  ).join('');
+    </div>`;
+  }).join('');
 }
 
 function buildSettlementHtml(expenses, members) {
   if (!expenses.length || !members.length) return '';
+  var memberNames = new Set(members.map(m => m.name));
+  var unknown = expenses.filter(e => !memberNames.has(e.paid_by));
+  if (unknown.length) {
+    return `<div class="settlement-box settlement-warn">
+      ⚠️ 支払い者「${[...new Set(unknown.map(e => esc(e.paid_by)))].join('・')}」がメンバーにいません。<br>
+      費用の支払い者を修正するか、メンバー名を揃えてください。
+    </div>`;
+  }
   var result = calcSettlement(expenses, members);
   if (!result) return '';
   var html = `<div class="settlement-box">
@@ -595,7 +605,7 @@ async function refreshExpenses() {
   var expenses = data || [];
   var listEl = document.getElementById('expenseList');
   var settEl = document.getElementById('settlementContent');
-  if (listEl) listEl.innerHTML = buildExpenseHtml(expenses);
+  if (listEl) listEl.innerHTML = buildExpenseHtml(expenses, currentCampMembers);
   if (settEl) settEl.innerHTML = buildSettlementHtml(expenses, currentCampMembers);
 }
 

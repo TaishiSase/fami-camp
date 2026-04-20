@@ -262,6 +262,8 @@ body {
 .settlement-to { font-weight: 600; color: var(--text); }
 .settlement-amount { margin-left: auto; font-weight: 700; color: var(--green-mid); }
 .settlement-even { font-size: 13px; color: var(--green-mid); padding: 4px 0; }
+.settlement-warn { background: #FEF3C7; border-color: #FDE68A; font-size: 13px; color: #92400E; line-height: 1.6; }
+.expense-payer-unknown { color: #D97706; font-weight: 700; }
 
 /* メモ */
 .notes-text { font-size: 14px; line-height: 1.7; color: var(--text); white-space: pre-wrap; }
