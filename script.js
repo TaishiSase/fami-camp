@@ -1469,7 +1469,7 @@ async function saveBadge() {
   var record = { name, icon, description: desc };
   if (badgeTargetCampId) record.camp_id = badgeTargetCampId;
   var { error } = await db.from('badges').insert(record);
-  if (error) { alert('追加に失敗しました'); return; }
+  if (error) { alert('追加に失敗しました: ' + error.message); return; }
   await loadBadges();
   renderBadgeStrip();
   hideAddBadgeModal();
