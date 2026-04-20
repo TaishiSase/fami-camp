@@ -153,6 +153,12 @@
         </label>
       </section>
 
+      <section id="formBadgeSection" class="form-section" style="display:none">
+        <h3 class="form-section-title">🏅 バッジ</h3>
+        <div id="formBadgeList"></div>
+        <button type="button" class="btn-save-group" onclick="showAddBadgeModal(editingCampId)">＋ バッジを追加</button>
+      </section>
+
       <div class="form-bottom-pad"></div>
     </div>
   </div>
@@ -224,7 +230,7 @@
   <div id="addBadgeModal" class="modal-overlay" onclick="hideAddBadgeModal()">
     <div class="bottom-sheet" onclick="event.stopPropagation()">
       <div class="sheet-handle"></div>
-      <h3 class="sheet-title">🏅 バッジを追加</h3>
+      <h3 class="sheet-title" id="badgeModalTitle">🏅 バッジを追加</h3>
       <div class="badge-presets" id="badgePresets"></div>
       <div class="field" style="margin-top:14px">
         <label class="field-label">バッジ名 <span class="required">*</span></label>
@@ -238,7 +244,7 @@
         <label class="field-label">説明（任意）</label>
         <input type="text" id="badgeDescInput" class="field-input" placeholder="例：初めてのキャンプを達成">
       </div>
-      <button class="btn-primary" onclick="saveBadge()">追加する</button>
+      <button class="btn-primary" id="badgeSaveBtn" onclick="saveBadge()">追加する</button>
     </div>
   </div>
 

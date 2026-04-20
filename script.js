@@ -21,6 +21,7 @@ var gearItems = [];
 var wishlistItems = [];
 var allBadges = [];
 var badgeTargetCampId = null;
+var editingBadgeId    = null;
 var pendingDetailRatings = {};
 
 // ===== 評価カテゴリ =====
@@ -34,14 +35,28 @@ var RATING_CATS = [
 
 // ===== マイルストーンバッジ =====
 var MILESTONE_BADGES = [
-  { icon: '🎉', name: '初キャンプ！',   desc: '記念すべき最初のキャンプ' },
-  { icon: '🔥', name: '焚き火マスター', desc: '焚き火を楽しんだ' },
-  { icon: '⭐', name: '5回達成！',      desc: 'キャンプ5回の節目' },
-  { icon: '🌧️', name: '雨キャン',      desc: '雨の中でもキャンプを楽しんだ' },
-  { icon: '❄️', name: '冬キャン',      desc: '冬のキャンプを制覇' },
-  { icon: '🌊', name: '海キャン',      desc: '海辺でキャンプ' },
-  { icon: '🏔️', name: '山キャン',      desc: '山でキャンプ' },
-  { icon: '🌙', name: '夜空が最高',    desc: '満天の星空の夜' }
+  { icon: '🎉', name: '初キャンプ！',       desc: '記念すべき最初のキャンプ' },
+  { icon: '🔥', name: '焚き火マスター',     desc: '焚き火を楽しんだ' },
+  { icon: '⭐', name: '5回達成！',          desc: 'キャンプ5回の節目' },
+  { icon: '🏆', name: '10回達成！',         desc: 'キャンプ10回の節目' },
+  { icon: '🌧️', name: '雨キャン',          desc: '雨の中でもキャンプを楽しんだ' },
+  { icon: '❄️', name: '冬キャン',          desc: '冬のキャンプを制覇' },
+  { icon: '🌊', name: '海キャン',          desc: '海辺でキャンプ' },
+  { icon: '🏔️', name: '山キャン',          desc: '山でキャンプ' },
+  { icon: '🌙', name: '夜空が最高',        desc: '満天の星空の夜' },
+  { icon: '🌸', name: '春キャン',          desc: '桜の季節のキャンプ' },
+  { icon: '🌻', name: '夏キャン',          desc: '夏の思い出キャンプ' },
+  { icon: '🍂', name: '秋キャン',          desc: '紅葉の中でキャンプ' },
+  { icon: '🎣', name: '釣り名人',          desc: 'キャンプで釣りを楽しんだ' },
+  { icon: '🍖', name: 'BBQマスター',       desc: '完璧なBBQを達成' },
+  { icon: '🌅', name: '朝活キャンパー',    desc: '早起きして朝日を見た' },
+  { icon: '🎆', name: '花火大会',          desc: 'キャンプで花火を楽しんだ' },
+  { icon: '🦋', name: '自然探検家',        desc: '昆虫や生き物を観察した' },
+  { icon: '🏊', name: '水遊び名人',        desc: '川や海で思い切り遊んだ' },
+  { icon: '🍰', name: '誕生日キャン',      desc: 'キャンプで誕生日を祝った' },
+  { icon: '👨‍👩‍👧', name: '家族の絆',        desc: '家族みんなで楽しんだキャンプ' },
+  { icon: '📸', name: 'カメラマン',        desc: 'たくさん写真を撮った' },
+  { icon: '🌈', name: '雨上がりの虹',      desc: '虹を見た' }
 ];
 
 // ===== 器具カテゴリ =====
@@ -632,6 +647,7 @@ function showNewCampForm() {
   document.getElementById('formTitle').textContent = '新しいキャンプ';
   clearForm(); renderFavGroupsRow();
   renderFormMembers(); renderFormTodos(); renderFormShopping(); updateAssigneeOptions();
+  document.getElementById('formBadgeSection').style.display = 'none';
   showView('form');
 }
 
@@ -660,6 +676,8 @@ async function showEditCampForm(campId) {
   document.getElementById('fRevisit').checked           = c.want_to_revisit || false;
 
   renderFavGroupsRow(); renderFormMembers(); renderFormTodos(); renderFormShopping(); updateAssigneeOptions();
+  document.getElementById('formBadgeSection').style.display = '';
+  renderFormBadges(campId);
   showView('form');
 }
 
@@ -1480,11 +1498,23 @@ function buildBadgeListHtml() {
   }).join('');
 }
 
-function showAddBadgeModal(campId) {
+function showAddBadgeModal(campId, badgeId) {
   badgeTargetCampId = campId;
-  document.getElementById('badgeNameInput').value = '';
-  document.getElementById('badgeIconInput').value = '';
-  document.getElementById('badgeDescInput').value = '';
+  editingBadgeId    = badgeId || null;
+  if (editingBadgeId) {
+    var b = allBadges.find(x => x.id === editingBadgeId);
+    document.getElementById('badgeNameInput').value = b ? (b.title || '') : '';
+    document.getElementById('badgeIconInput').value = b ? (b.emoji || '') : '';
+    document.getElementById('badgeDescInput').value = b ? (b.description || '') : '';
+    document.getElementById('badgeSaveBtn').textContent  = '更新する';
+    document.getElementById('badgeModalTitle').textContent = '🏅 バッジを編集';
+  } else {
+    document.getElementById('badgeNameInput').value = '';
+    document.getElementById('badgeIconInput').value = '';
+    document.getElementById('badgeDescInput').value = '';
+    document.getElementById('badgeSaveBtn').textContent  = '追加する';
+    document.getElementById('badgeModalTitle').textContent = '🏅 バッジを追加';
+  }
   document.getElementById('badgePresets').innerHTML = MILESTONE_BADGES.map((b, i) =>
     `<button class="badge-preset-btn" onclick="selectBadgePreset(${i})">${b.icon} ${b.name}</button>`
   ).join('');
@@ -1504,16 +1534,25 @@ async function saveBadge() {
   var icon = document.getElementById('badgeIconInput').value.trim() || '🏅';
   var desc = document.getElementById('badgeDescInput').value.trim() || null;
   if (!name) { alert('バッジ名を入力してください'); return; }
-  var record = { title: name, emoji: icon, description: desc };
-  if (badgeTargetCampId) record.camp_id = badgeTargetCampId;
-  var { error } = await db.from('badges').insert(record);
-  if (error) { alert('追加に失敗しました: ' + error.message); return; }
+
+  if (editingBadgeId) {
+    var { error } = await db.from('badges').update({ title: name, emoji: icon, description: desc }).eq('id', editingBadgeId);
+    if (error) { alert('更新に失敗しました: ' + error.message); return; }
+  } else {
+    var record = { title: name, emoji: icon, description: desc };
+    if (badgeTargetCampId) record.camp_id = badgeTargetCampId;
+    var { error } = await db.from('badges').insert(record);
+    if (error) { alert('追加に失敗しました: ' + error.message); return; }
+  }
+
   await loadBadges();
   renderBadgeStrip();
   hideAddBadgeModal();
   var dashEl = document.getElementById('dashBadgeList');
   if (dashEl) dashEl.innerHTML = buildBadgeListHtml();
-  if (badgeTargetCampId === currentCampId) await showCampDetail(currentCampId);
+  if (editingCampId) renderFormBadges(editingCampId);
+  if (badgeTargetCampId === currentCampId && document.getElementById('viewDetail').classList.contains('active'))
+    await showCampDetail(currentCampId);
 }
 
 async function deleteBadge(id) {
@@ -1524,6 +1563,35 @@ async function deleteBadge(id) {
   renderBadgeStrip();
   var dashEl = document.getElementById('dashBadgeList');
   if (dashEl) dashEl.innerHTML = buildBadgeListHtml();
+}
+
+function renderFormBadges(campId) {
+  var el = document.getElementById('formBadgeList');
+  if (!el) return;
+  var campBadges = allBadges.filter(b => b.camp_id === campId);
+  if (!campBadges.length) { el.innerHTML = '<p class="empty-msg">まだありません</p>'; return; }
+  el.innerHTML = campBadges.map(b => {
+    var gi = allBadges.findIndex(x => x.id === b.id);
+    var [c1, c2] = BADGE_COLORS[gi % BADGE_COLORS.length];
+    return `<div class="form-badge-row">
+      <div class="badge-medal badge-medal-sm" style="background:linear-gradient(145deg,${c2},${c1})">${b.emoji || '🏅'}</div>
+      <div class="form-badge-info">
+        <div class="form-badge-name">${esc(b.title)}</div>
+        ${b.description ? `<div class="form-badge-desc">${esc(b.description)}</div>` : ''}
+      </div>
+      <button type="button" class="btn-badge-edit" onclick="showAddBadgeModal('${campId}','${b.id}')">編集</button>
+      <button type="button" class="btn-gear-del" onclick="deleteFormBadge('${b.id}','${campId}')">×</button>
+    </div>`;
+  }).join('');
+}
+
+async function deleteFormBadge(badgeId, campId) {
+  if (!confirm('このバッジを削除しますか？')) return;
+  var { error } = await db.from('badges').delete().eq('id', badgeId);
+  if (error) { alert('削除に失敗しました'); return; }
+  await loadBadges();
+  renderBadgeStrip();
+  renderFormBadges(campId);
 }
 
 // ===== ユーティリティ =====
