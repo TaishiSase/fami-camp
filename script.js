@@ -963,19 +963,21 @@ async function openShare(text) {
 // ===== LINEシェア（リッチ版） =====
 async function shareToLine(campId) {
   try {
-  var [cr, mr, tr, sr, gr, pr] = await Promise.all([
+  var [cr, mr, tr, sr, gr, pr, br] = await Promise.all([
     db.from('camps').select('*').eq('id', campId).single(),
     db.from('camp_members').select('*').eq('camp_id', campId),
     db.from('camp_todos').select('*').eq('camp_id', campId),
     db.from('camp_shopping').select('*').eq('camp_id', campId),
     db.from('camp_gear').select('gear_item_id').eq('camp_id', campId),
-    db.from('camp_photos').select('*').eq('camp_id', campId).order('sort_order')
+    db.from('camp_photos').select('*').eq('camp_id', campId).order('sort_order'),
+    db.from('badges').select('*').eq('camp_id', campId).order('created_at')
   ]);
   var c        = cr.data;
   var members  = mr.data || [];
   var todos    = tr.data || [];
   var shopping = sr.data || [];
   var photos   = pr.data || [];
+  var badges   = br.data || [];
 
   var L = [];
 
@@ -1021,6 +1023,20 @@ async function shareToLine(campId) {
     }
     if (c.want_to_revisit) {
       L.push('⭐ またここに行きたい！');
+      L.push('');
+    }
+    var hasCatRating = RATING_CATS.some(r => c[r.key]);
+    if (hasCatRating) {
+      L.push('📊 詳細評価');
+      RATING_CATS.forEach(r => {
+        var v = c[r.key] || 0;
+        if (v) L.push(`   ${r.icon} ${r.label}\t${'★'.repeat(v)}${'☆'.repeat(5 - v)}`);
+      });
+      L.push('');
+    }
+    if (badges.length) {
+      L.push('🏅 バッジ');
+      L.push('   ' + badges.map(b => `${b.emoji || '🏅'} ${b.title}`).join('　'));
       L.push('');
     }
 
