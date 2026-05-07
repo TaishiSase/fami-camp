@@ -340,7 +340,7 @@
   <div id="addGearModal" class="modal-overlay" onclick="hideAddGearModal()">
     <div class="bottom-sheet" onclick="event.stopPropagation()">
       <div class="sheet-handle"></div>
-      <h3 class="sheet-title">器具を追加</h3>
+      <h3 class="sheet-title" id="gearModalTitle">器具を追加</h3>
       <div class="field" style="margin-top:12px">
         <label class="field-label">カテゴリ</label>
         <select id="gearCategoryInput" class="field-input">
@@ -357,7 +357,7 @@
         <label class="field-label">器具名</label>
         <input type="text" id="gearNameInput" class="field-input" placeholder="例：ツールームテント">
       </div>
-      <button class="btn-primary" onclick="saveGearItem()">追加する</button>
+      <button class="btn-primary" id="gearSaveBtn" onclick="saveGearItem()">追加する</button>
     </div>
   </div>
 

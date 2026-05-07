@@ -1191,6 +1191,7 @@ function renderGearView() {
     items.forEach(g => {
       html += `<div class="gear-item-row">
         <span class="gear-item-name">${esc(g.name)}</span>
+        <button class="btn-gear-edit" onclick="showEditGearModal('${g.id}','${esc(g.name)}','${g.category}')">編集</button>
         <button class="btn-gear-del" onclick="deleteGearItem('${g.id}')">×</button>
       </div>`;
     });
@@ -1199,19 +1200,45 @@ function renderGearView() {
   el.innerHTML = html;
 }
 
+var editingGearId = null; // null=新規, string=編集中のID
+
 function showAddGearModal() {
+  editingGearId = null;
   document.getElementById('gearNameInput').value = '';
   document.getElementById('gearCategoryInput').selectedIndex = 0;
+  document.getElementById('gearModalTitle').textContent = '器具を追加';
+  document.getElementById('gearSaveBtn').textContent = '追加する';
   document.getElementById('addGearModal').classList.add('active');
+  setTimeout(function() { document.getElementById('gearNameInput').focus(); }, 80);
 }
-function hideAddGearModal() { document.getElementById('addGearModal').classList.remove('active'); }
+
+function showEditGearModal(id, name, category) {
+  editingGearId = id;
+  document.getElementById('gearNameInput').value = name;
+  document.getElementById('gearCategoryInput').value = category;
+  document.getElementById('gearModalTitle').textContent = '器具を編集';
+  document.getElementById('gearSaveBtn').textContent = '保存する';
+  document.getElementById('addGearModal').classList.add('active');
+  setTimeout(function() { document.getElementById('gearNameInput').focus(); }, 80);
+}
+
+function hideAddGearModal() {
+  document.getElementById('addGearModal').classList.remove('active');
+  editingGearId = null;
+}
 
 async function saveGearItem() {
   var name     = document.getElementById('gearNameInput').value.trim();
   var category = document.getElementById('gearCategoryInput').value;
   if (!name) { alert('器具名を入力してください'); return; }
-  var { error } = await db.from('gear_items').insert({ name, category });
-  if (error) { alert('追加に失敗しました'); return; }
+
+  if (editingGearId) {
+    var { error } = await db.from('gear_items').update({ name, category }).eq('id', editingGearId);
+    if (error) { alert('更新に失敗しました'); return; }
+  } else {
+    var { error } = await db.from('gear_items').insert({ name, category });
+    if (error) { alert('追加に失敗しました'); return; }
+  }
   await loadGearItems();
   renderGearView();
   hideAddGearModal();

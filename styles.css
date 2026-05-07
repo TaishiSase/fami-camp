@@ -435,6 +435,13 @@ body {
   box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 .gear-item-name { flex: 1; font-size: 14px; color: var(--text); }
+.btn-gear-edit {
+  background: none; border: 1px solid var(--border);
+  border-radius: 8px; color: var(--muted);
+  font-size: 11px; font-weight: 600; cursor: pointer;
+  padding: 4px 10px; flex-shrink: 0; transition: all 0.15s;
+}
+.btn-gear-edit:active { background: var(--green-bg); color: var(--green-light); border-color: var(--green-light); }
 .btn-gear-del {
   background: none; border: none; color: #D1CBC2;
   font-size: 20px; cursor: pointer; padding: 0; line-height: 1; flex-shrink: 0;
